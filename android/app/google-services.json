@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "890847482230",
+    "project_id": "healthsathi-c7ec6",
+    "storage_bucket": "healthsathi-c7ec6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:890847482230:android:7b27c46724e5fce0ac6a57",
+        "android_client_info": {
+          "package_name": "com.example.healthsathi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAMczFcRE790IhCTorfkZrheXxKDyliHDU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,6 @@
+{
+  "name": "HealthSathi",
+  "description": "Apnar Shastho, Apnar Hathe. Interactive Flutter healthcare mobile app prototype and production-ready source code generator.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

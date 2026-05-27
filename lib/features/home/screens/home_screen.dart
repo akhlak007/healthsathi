@@ -735,7 +735,7 @@ class HomeScreen extends ConsumerWidget {
                   _buildDrawerItem(
                     icon: Icons.group_rounded,
                     title: 'Family Profiles',
-                    isSelected: true,
+                    //isSelected: true,
                     onTap: () {
                       context.pop();
                       context.push('/family-profiles');

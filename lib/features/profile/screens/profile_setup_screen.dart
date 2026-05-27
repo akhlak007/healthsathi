@@ -102,7 +102,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         title: Row(
           children: [
             const Text(
-              'e HealthSathi',
+              ' HealthSathi',
               style: TextStyle(
                 color: Color(0xFF003D9B),
                 fontWeight: FontWeight.w900,
@@ -209,7 +209,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             const SizedBox(height: 32),
 
             // My eHealth Info
-            _buildSectionHeader('My eHealth Info', actionText: 'Edit', onActionTap: () => context.push('/edit-profile').then((_) => _loadExistingProfile())),
+            _buildSectionHeader('My Health Info', actionText: 'Edit', onActionTap: () => context.push('/edit-profile').then((_) => _loadExistingProfile())),
             const SizedBox(height: 16),
             Row(
               children: [

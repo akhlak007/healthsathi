@@ -81,6 +81,7 @@ class UploadState {
     List<String>? medicines,
     String? notes,
     String? recordType,
+    String? recordLabel,
     String? errorMessage,
     String? imageUrl,
   }) {
@@ -95,6 +96,7 @@ class UploadState {
       medicines: medicines ?? this.medicines,
       notes: notes ?? this.notes,
       recordType: recordType ?? this.recordType,
+      recordLabel: recordLabel ?? this.recordLabel,
       errorMessage: errorMessage ?? this.errorMessage,
       imageUrl: imageUrl ?? this.imageUrl,
     );

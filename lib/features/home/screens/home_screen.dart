@@ -650,7 +650,13 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
           ),
-          bottomNavigationBar: const AppBottomNavBar(activeIndex: 0),
+          floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFF003D9B),
+        child: const Icon(Icons.auto_awesome, color: Colors.white),
+        onPressed: () => context.push('/ai-chat'),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      bottomNavigationBar: const AppBottomNavBar(activeIndex: 0),
         );
       },
     );

@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../features/onboarding/screens/onboarding_screen.dart';
 import '../features/auth/screens/login_screen.dart';
@@ -18,6 +17,7 @@ import '../features/settings/screens/settings_screen.dart';
 import '../features/notifications/screens/notifications_screen.dart';
 import '../features/records/presentation/screens/record_detail_screen.dart';
 import '../features/records/presentation/screens/record_edit_screen.dart';
+import '../features/chat/screens/ai_chat_screen.dart';
 
 class AppRouter {
   AppRouter._();
@@ -40,6 +40,7 @@ class AppRouter {
   static const String notifications = '/notifications';
   static const String recordDetail = '/record';
   static const String recordEdit = '/record-edit';
+  static const String aiChat = '/ai-chat';
 
   static final GoRouter router = GoRouter(
     initialLocation: splash,
@@ -121,6 +122,10 @@ class AppRouter {
           final recordId = state.pathParameters['recordId'] ?? '';
           return RecordEditScreen(recordId: recordId);
         },
+      ),
+      GoRoute(
+        path: aiChat,
+        builder: (context, state) => const AIChatScreen(),
       ),
     ],
   );

@@ -5,13 +5,13 @@ import '../../domain/entities/ocr_record.dart';
 
 abstract class OcrRecordRepository {
   /// Upload image or PDF file to Firebase Storage and return its download URL.
-  Future<String> uploadFile({required String userId, required String filePath, required bool isPdf});
+  Future<String> uploadFile({required String userId, required String activeProfileId, required String filePath, required bool isPdf});
 
   /// Save OCR record data to Firestore.
-  Future<void> saveRecord({required String userId, required OcrRecord record});
+  Future<void> saveRecord({required String userId, required String activeProfileId, required OcrRecord record});
 
-  /// Stream real‑time records for a user.
-  Stream<List<OcrRecord>> watchRecords({required String userId});
+  /// Stream real‑time records for a user/profile.
+  Stream<List<OcrRecord>> watchRecords({required String userId, required String activeProfileId});
 }
 
 class FirebaseOcrRecordRepository implements OcrRecordRepository {
@@ -25,29 +25,36 @@ class FirebaseOcrRecordRepository implements OcrRecordRepository {
         _storage = storage ?? FirebaseStorage.instance;
 
   @override
-  Future<String> uploadFile({required String userId, required String filePath, required bool isPdf}) async {
+  Future<String> uploadFile({required String userId, required String activeProfileId, required String filePath, required bool isPdf}) async {
     // Use the file name as storage reference.
     final parts = filePath.split('/')..removeWhere((e) => e.isEmpty);
     final baseName = parts.isNotEmpty ? parts.last : DateTime.now().millisecondsSinceEpoch.toString();
-    final ref = _storage.ref().child('users/$userId/records/$baseName');
+    
+    final basePath = activeProfileId == 'self' 
+        ? 'users/$userId/records'
+        : 'users/$userId/familyProfiles/$activeProfileId/records';
+        
+    final ref = _storage.ref().child('$basePath/$baseName');
     final taskSnapshot = await ref.putFile(File(filePath));
     return await ref.getDownloadURL();
   }
 
   @override
-  Future<void> saveRecord({required String userId, required OcrRecord record}) async {
-    final colRef = _firestore.collection('users').doc(userId).collection('records');
+  Future<void> saveRecord({required String userId, required String activeProfileId, required OcrRecord record}) async {
+    final colRef = activeProfileId == 'self'
+        ? _firestore.collection('users').doc(userId).collection('records')
+        : _firestore.collection('users').doc(userId).collection('familyProfiles').doc(activeProfileId).collection('records');
     await colRef.doc(record.id).set(record.toJson());
   }
 
   @override
-  Stream<List<OcrRecord>> watchRecords({required String userId}) {
-    final colRef = _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('records')
-        .orderBy('createdAt', descending: true);
-    return colRef.snapshots().map((snapshot) =>
+  Stream<List<OcrRecord>> watchRecords({required String userId, required String activeProfileId}) {
+    final colRef = activeProfileId == 'self'
+        ? _firestore.collection('users').doc(userId).collection('records')
+        : _firestore.collection('users').doc(userId).collection('familyProfiles').doc(activeProfileId).collection('records');
+        
+    final query = colRef.orderBy('createdAt', descending: true);
+    return query.snapshots().map((snapshot) =>
         snapshot.docs.map((doc) => OcrRecord.fromJson(doc.data(), doc.id)).toList());
   }
 }

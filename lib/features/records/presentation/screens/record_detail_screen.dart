@@ -8,15 +8,18 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
 import '../../../upload/domain/entities/ocr_record.dart';
+import '../../../profile/providers/active_profile_provider.dart';
 
 final recordDetailProvider = StreamProvider.family<OcrRecord?, String>((ref, recordId) {
   final user = FirebaseAuth.instance.currentUser;
+  final activeProfileId = ref.watch(activeProfileProvider);
   if (user == null) return const Stream.empty();
 
-  return FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
-      .collection('records')
+  final collectionRef = activeProfileId == 'self'
+      ? FirebaseFirestore.instance.collection('users').doc(user.uid).collection('records')
+      : FirebaseFirestore.instance.collection('users').doc(user.uid).collection('familyProfiles').doc(activeProfileId).collection('records');
+
+  return collectionRef
       .doc(recordId)
       .snapshots()
       .map((doc) => doc.exists ? OcrRecord.fromJson(doc.data()!, doc.id) : null);
@@ -224,13 +227,13 @@ class RecordDetailScreen extends ConsumerWidget {
 
     if (confirm == true) {
       final user = FirebaseAuth.instance.currentUser;
+      final activeProfileId = ref.read(activeProfileProvider);
       if (user != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('records')
-            .doc(recordId)
-            .delete();
+        final collectionRef = activeProfileId == 'self'
+            ? FirebaseFirestore.instance.collection('users').doc(user.uid).collection('records')
+            : FirebaseFirestore.instance.collection('users').doc(user.uid).collection('familyProfiles').doc(activeProfileId).collection('records');
+            
+        await collectionRef.doc(recordId).delete();
         if (context.mounted) {
           context.pop();
         }

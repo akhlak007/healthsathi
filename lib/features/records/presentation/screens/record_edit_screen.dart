@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
 import '../../../upload/domain/entities/ocr_record.dart';
+import '../../../profile/providers/active_profile_provider.dart';
 import 'record_detail_screen.dart'; // To use recordDetailProvider
 
 class RecordEditScreen extends ConsumerStatefulWidget {
@@ -64,13 +65,13 @@ class _RecordEditScreenState extends ConsumerState<RecordEditScreen> {
 
     try {
       final user = FirebaseAuth.instance.currentUser;
+      final activeProfileId = ref.read(activeProfileProvider);
       if (user != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('records')
-            .doc(widget.recordId)
-            .update({
+        final collectionRef = activeProfileId == 'self'
+            ? FirebaseFirestore.instance.collection('users').doc(user.uid).collection('records')
+            : FirebaseFirestore.instance.collection('users').doc(user.uid).collection('familyProfiles').doc(activeProfileId).collection('records');
+            
+        await collectionRef.doc(widget.recordId).update({
           'recordType': _recordType,
           'doctorName': _doctorController.text.trim(),
           'hospitalName': _hospitalController.text.trim(),

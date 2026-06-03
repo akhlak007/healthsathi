@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../data/repositories/ocr_record_repository.dart';
 import '../domain/entities/ocr_record.dart';
+import '../../profile/providers/active_profile_provider.dart';
 
 // ---------------------------------------------------------------------------
 // Repository provider
@@ -104,9 +105,10 @@ class UploadState {
 // ---------------------------------------------------------------------------
 
 class UploadNotifier extends StateNotifier<UploadState> {
-  UploadNotifier(this._repository) : super(const UploadState());
+  UploadNotifier(this._repository, this._activeProfileId) : super(const UploadState());
 
   final FirebaseOcrRecordRepository _repository;
+  final String _activeProfileId;
   final ImagePicker _imagePicker = ImagePicker();
 
   // ---- File picking ----------------------------------------------------
@@ -333,6 +335,7 @@ class UploadNotifier extends StateNotifier<UploadState> {
       if (filePath != null) {
         downloadUrl = await _repository.uploadFile(
           userId: user.uid,
+          activeProfileId: _activeProfileId,
           filePath: filePath,
           isPdf: isPdf,
         );
@@ -360,7 +363,11 @@ class UploadNotifier extends StateNotifier<UploadState> {
         userId: user.uid,
       );
 
-      await _repository.saveRecord(userId: user.uid, record: record);
+      await _repository.saveRecord(
+        userId: user.uid, 
+        activeProfileId: _activeProfileId, 
+        record: record,
+      );
 
       state = state.copyWith(
         status: UploadStatus.success,
@@ -388,5 +395,6 @@ class UploadNotifier extends StateNotifier<UploadState> {
 final uploadStateProvider =
     StateNotifierProvider<UploadNotifier, UploadState>((ref) {
   final repository = ref.watch(ocrRecordRepositoryProvider);
-  return UploadNotifier(repository);
+  final activeProfileId = ref.watch(activeProfileProvider);
+  return UploadNotifier(repository, activeProfileId);
 });

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../upload/domain/entities/ocr_record.dart';
+import '../../profile/providers/active_profile_provider.dart';
 
 // ---------------------------------------------------------------------------
 // Legacy MedicalRecord class – retained for backward compatibility with UI
@@ -80,18 +81,17 @@ class MedicalRecord {
 
 final timelineRecordsProvider = StreamProvider<List<OcrRecord>>((ref) {
   final user = FirebaseAuth.instance.currentUser;
+  final activeProfileId = ref.watch(activeProfileProvider);
 
   if (user == null) {
     return Stream.value(<OcrRecord>[]);
   }
 
-  final collectionRef = FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
-      .collection('records')
-      .orderBy('createdAt', descending: true);
+  final collectionRef = activeProfileId == 'self'
+      ? FirebaseFirestore.instance.collection('users').doc(user.uid).collection('records')
+      : FirebaseFirestore.instance.collection('users').doc(user.uid).collection('familyProfiles').doc(activeProfileId).collection('records');
 
-  return collectionRef.snapshots().map((snapshot) {
+  return collectionRef.orderBy('createdAt', descending: true).snapshots().map((snapshot) {
     return snapshot.docs
         .map((doc) => OcrRecord.fromJson(doc.data(), doc.id))
         .toList();

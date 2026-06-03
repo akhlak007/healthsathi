@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/clinical_widgets.dart';
 import '../../auth/providers/firebase_auth_provider.dart';
+import '../providers/active_profile_provider.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -37,21 +38,43 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Future<void> _loadExistingProfile() async {
     final user = ref.read(firebaseAuthProvider).currentUser;
     if (user != null) {
-      final doc = await ref.read(firestoreProvider).collection('users').doc(user.uid).get();
+      final activeProfileId = ref.read(activeProfileProvider);
+      final isSelf = activeProfileId == 'self';
+
+      final docPath = isSelf
+          ? ref.read(firestoreProvider).collection('users').doc(user.uid)
+          : ref.read(firestoreProvider).collection('users').doc(user.uid).collection('familyProfiles').doc(activeProfileId);
+
+      final doc = await docPath.get();
       if (doc.exists && mounted) {
         final data = doc.data()!;
         setState(() {
           _nameController.text = data['name'] ?? data['fullName'] ?? '';
-          _bioController.text = data['bio'] ?? '';
-          _profileImageUrl = data['profileImage'];
+          _bioController.text = data['bio'] ?? (isSelf ? '' : data['relationship'] ?? '');
+          _profileImageUrl = data['profileImage'] ?? data['photoUrl'];
           
           if (data['age'] != null) _ageController.text = data['age'];
           if (data['gender'] != null) _selectedGender = data['gender'];
           if (data['bloodGroup'] != null) _selectedBlood = data['bloodGroup'];
-          if (data['allergies'] != null) _allergiesController.text = data['allergies'];
-          if (data['chronicDiseases'] != null) _chronicController.text = data['chronicDiseases'];
+          
+          if (data['allergies'] != null) {
+            _allergiesController.text = data['allergies'] is List ? (data['allergies'] as List).join(', ') : data['allergies'];
+          } else {
+             _allergiesController.clear();
+          }
+          if (data['chronicDiseases'] != null) {
+            _chronicController.text = data['chronicDiseases'] is List ? (data['chronicDiseases'] as List).join(', ') : data['chronicDiseases'];
+          } else {
+            _chronicController.clear();
+          }
+          
           if (data['emergencyContactName'] != null) _emergencyNameController.text = data['emergencyContactName'];
           if (data['emergencyContactPhone'] != null) _emergencyPhoneController.text = data['emergencyContactPhone'];
+          
+          if (!isSelf && data['emergencyContact'] != null) {
+            _emergencyPhoneController.text = data['emergencyContact'];
+            _emergencyNameController.clear();
+          }
         });
       }
     }
@@ -71,6 +94,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(activeProfileProvider, (previous, next) {
+      if (previous != next) {
+        _loadExistingProfile();
+      }
+    });
+
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -351,20 +380,40 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 final user = ref.read(firebaseAuthProvider).currentUser;
                 if (user != null) {
                   try {
-                    await ref.read(firestoreProvider).collection('users').doc(user.uid).set({
+                    final activeProfileId = ref.read(activeProfileProvider);
+                    final isSelf = activeProfileId == 'self';
+
+                    final docPath = isSelf
+                        ? ref.read(firestoreProvider).collection('users').doc(user.uid)
+                        : ref.read(firestoreProvider).collection('users').doc(user.uid).collection('familyProfiles').doc(activeProfileId);
+
+                    Map<String, dynamic> updateData = {
                       'name': _nameController.text.trim(),
                       'fullName': _nameController.text.trim(),
-                      'bio': _bioController.text.trim(),
-                      if (_profileImageUrl != null) 'profileImage': _profileImageUrl,
                       'age': _ageController.text.trim(),
                       'gender': _selectedGender,
                       'bloodGroup': _selectedBlood,
-                      'allergies': _allergiesController.text.trim(),
-                      'chronicDiseases': _chronicController.text.trim(),
-                      'emergencyContactName': _emergencyNameController.text.trim(),
-                      'emergencyContactPhone': _emergencyPhoneController.text.trim(),
+                      'allergies': _allergiesController.text.trim().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
+                      'chronicDiseases': _chronicController.text.trim().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
                       'updatedAt': DateTime.now().toIso8601String(),
-                    }, SetOptions(merge: true));
+                    };
+                    
+                    if (isSelf) {
+                       updateData['bio'] = _bioController.text.trim();
+                       if (_profileImageUrl != null) updateData['profileImage'] = _profileImageUrl;
+                       updateData['emergencyContactName'] = _emergencyNameController.text.trim();
+                       updateData['emergencyContactPhone'] = _emergencyPhoneController.text.trim();
+                    } else {
+                       updateData['relationship'] = _bioController.text.trim();
+                       if (_profileImageUrl != null) updateData['photoUrl'] = _profileImageUrl;
+                       updateData['emergencyContact'] = _emergencyPhoneController.text.trim();
+                       // Also save names if preferred, but AddFamilyMemberScreen uses emergencyContact.
+                       updateData['emergencyContactName'] = _emergencyNameController.text.trim();
+                       updateData['emergencyContactPhone'] = _emergencyPhoneController.text.trim();
+                    }
+
+                    await docPath.set(updateData, SetOptions(merge: true));
+                    
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Profile updated successfully.')),

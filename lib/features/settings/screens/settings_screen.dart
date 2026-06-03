@@ -7,6 +7,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
 import '../../auth/providers/local_auth_provider.dart';
 import '../../auth/providers/firebase_auth_provider.dart';
+import '../../profile/providers/active_profile_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -15,6 +16,14 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final localAuthState = ref.watch(localAuthProvider);
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    final activeProfileId = ref.watch(activeProfileProvider);
+    final isSelf = activeProfileId == 'self';
+
+    final userDocStream = uid != null
+        ? (isSelf
+            ? FirebaseFirestore.instance.collection('users').doc(uid).snapshots()
+            : FirebaseFirestore.instance.collection('users').doc(uid).collection('familyProfiles').doc(activeProfileId).snapshots())
+        : Stream<DocumentSnapshot>.empty();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
@@ -30,11 +39,10 @@ class SettingsScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: StreamBuilder<DocumentSnapshot>(
-              stream: uid != null
-                ? FirebaseFirestore.instance.collection('users').doc(uid).snapshots()
-                : Stream.empty(),
+              stream: userDocStream,
               builder: (context, snapshot) {
-                final profileImage = (snapshot.data?.data() as Map<String, dynamic>?)?['profileImage'] as String?;
+                final data = snapshot.data?.data() as Map<String, dynamic>?;
+                final profileImage = (data?['profileImage'] ?? data?['photoUrl']) as String?;
                 return CircleAvatar(
                   radius: 18,
                   backgroundImage: profileImage != null ? NetworkImage(profileImage) : null,
@@ -52,7 +60,7 @@ class SettingsScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // User Profile Section
-            _buildUserProfileSection(uid),
+            _buildUserProfileSection(userDocStream, isSelf),
             const SizedBox(height: 24),
 
             // PREFERENCES Section
@@ -220,19 +228,17 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildUserProfileSection(String? uid) {
+  Widget _buildUserProfileSection(Stream<DocumentSnapshot> userDocStream, bool isSelf) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: StreamBuilder<DocumentSnapshot>(
-        stream: uid != null
-          ? FirebaseFirestore.instance.collection('users').doc(uid).snapshots()
-          : Stream.empty(),
+        stream: userDocStream,
         builder: (context, snapshot) {
           final data = snapshot.data?.data() as Map<String, dynamic>?;
-          final name = data?['name'] ?? 'User Name';
+          final name = data?['name'] ?? data?['fullName'] ?? 'User Name';
           final patientId = data?['patientId'] ?? 'Not Set';
-          final membershipStatus = data?['membershipStatus'] ?? 'Standard Member';
-          final profileImage = data?['profileImage'] as String?;
+          final membershipStatus = data?['membershipStatus'] ?? (isSelf ? 'Standard Member' : 'Family Member');
+          final profileImage = (data?['profileImage'] ?? data?['photoUrl']) as String?;
 
           return Container(
             padding: const EdgeInsets.all(16),

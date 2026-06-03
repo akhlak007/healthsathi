@@ -4,12 +4,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
 
-class EmergencyScreen extends StatelessWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../profile/providers/active_profile_provider.dart';
+
+class EmergencyScreen extends ConsumerWidget {
   const EmergencyScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    final activeProfileId = ref.watch(activeProfileProvider);
 
     if (uid == null) {
       return const Scaffold(
@@ -17,8 +21,12 @@ class EmergencyScreen extends StatelessWidget {
       );
     }
 
+    final docRef = activeProfileId == 'self'
+        ? FirebaseFirestore.instance.collection('users').doc(uid)
+        : FirebaseFirestore.instance.collection('users').doc(uid).collection('familyProfiles').doc(activeProfileId);
+
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+      stream: docRef.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -43,13 +51,19 @@ class EmergencyScreen extends StatelessWidget {
         }
 
         final data = snapshot.data!.data() as Map<String, dynamic>?;
+        final isSelf = activeProfileId == 'self';
 
         final patientName = data?['name'] ?? 'Patient Name Not Set';
         final bloodType = data?['bloodGroup'] ?? 'Not Set';
-        final chronicConditions = data?['chronicDiseases'] ?? 'No chronic conditions reported';
-        final drugReactions = data?['allergies'] ?? 'No known allergies';
-        final emergencyContactName = data?['emergencyContactName'] ?? 'No emergency contact';
-        final emergencyContactPhone = data?['emergencyContactPhone'] ?? 'No phone number';
+        
+        final chronicData = data?['chronicDiseases'];
+        final chronicConditions = chronicData is List ? chronicData.join(', ') : (chronicData?.toString() ?? 'No chronic conditions reported');
+        
+        final allergiesData = data?['allergies'];
+        final drugReactions = allergiesData is List ? allergiesData.join(', ') : (allergiesData?.toString() ?? 'No known allergies');
+        
+        final emergencyContactName = isSelf ? (data?['emergencyContactName'] ?? 'No emergency contact') : (data?['emergencyContact'] ?? 'No emergency contact');
+        final emergencyContactPhone = isSelf ? (data?['emergencyContactPhone'] ?? 'No phone number') : (data?['emergencyContact'] ?? 'No phone number');
 
         final textTheme = Theme.of(context).textTheme;
 

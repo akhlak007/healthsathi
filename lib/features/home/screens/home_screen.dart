@@ -7,6 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
 import '../../emergency/screens/emergency_screen.dart';
+import '../../profile/providers/active_profile_provider.dart';
+import '../../profile/widgets/profile_switcher_bottom_sheet.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -14,21 +16,29 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
+    final activeProfileId = ref.watch(activeProfileProvider);
     
     if (uid == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+      stream: activeProfileId == 'self' 
+          ? FirebaseFirestore.instance.collection('users').doc(uid).snapshots()
+          : FirebaseFirestore.instance.collection('users').doc(uid).collection('familyProfiles').doc(activeProfileId).snapshots(),
       builder: (context, snapshot) {
         final data = snapshot.data?.data() as Map<String, dynamic>?;
-        final name = data?['name'] ?? 'User';
-        final email = data?['email'] ?? '';
-        final bio = data?['bio'] ?? '';
+        final isSelf = activeProfileId == 'self';
+
+        final name = data?['name'] ?? (isSelf ? 'User' : 'Family Member');
+        final emailOrRelation = isSelf ? (data?['email'] ?? '') : (data?['relationship'] ?? 'Family Member');
         final bloodGroup = data?['bloodGroup'] ?? 'Not Set';
-        final allergies = data?['allergies'] ?? '';
-        final profileImageUrl = data?['profileImage'] == 'default' || data?['profileImage'] == null
+        final bioOrBlood = isSelf ? (data?['bio'] ?? '') : 'Blood Group: $bloodGroup';
+        final rawAllergies = data?['allergies'];
+        final allergies = rawAllergies is List ? rawAllergies.join(', ') : (rawAllergies?.toString() ?? '');
+        
+        final rawImageUrl = isSelf ? (data?['profileImage']) : (data?['photoUrl']);
+        final profileImageUrl = rawImageUrl == 'default' || rawImageUrl == null
             ? 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=003D9B&color=fff'
-            : data!['profileImage'];
+            : rawImageUrl;
 
         return Scaffold(
           backgroundColor: const Color(0xFFF8FAFC),
@@ -45,16 +55,19 @@ class HomeScreen extends ConsumerWidget {
             titleSpacing: 20,
             title: Row(
               children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    image: DecorationImage(
-                      image: profileImageUrl.startsWith('data:')
-                          ? MemoryImage(base64Decode(profileImageUrl.split(',').last)) as ImageProvider
-                          : NetworkImage(profileImageUrl),
-                      fit: BoxFit.cover,
+                GestureDetector(
+                  onTap: () => showProfileSwitcher(context),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      image: DecorationImage(
+                        image: profileImageUrl.startsWith('data:')
+                            ? MemoryImage(base64Decode(profileImageUrl.split(',').last)) as ImageProvider
+                            : NetworkImage(profileImageUrl),
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                 ),
@@ -122,7 +135,7 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    email,
+                    emailOrRelation,
                     style: const TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 14,
@@ -130,10 +143,10 @@ class HomeScreen extends ConsumerWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  if (bio.isNotEmpty) ...[
+                  if (bioOrBlood.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
-                      bio,
+                      bioOrBlood,
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 15.5,

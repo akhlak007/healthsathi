@@ -7,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/clinical_widgets.dart';
 import '../../auth/providers/firebase_auth_provider.dart';
+import '../providers/active_profile_provider.dart';
+import '../widgets/profile_switcher_bottom_sheet.dart';
 
 class ProfileSetupScreen extends ConsumerStatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -39,27 +41,65 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   Future<void> _loadExistingProfile() async {
     final user = ref.read(firebaseAuthProvider).currentUser;
     if (user != null) {
-      final doc = await ref.read(firestoreProvider).collection('users').doc(user.uid).get();
+      final activeProfileId = ref.read(activeProfileProvider);
+      final isSelf = activeProfileId == 'self';
+
+      final docPath = isSelf
+          ? ref.read(firestoreProvider).collection('users').doc(user.uid)
+          : ref.read(firestoreProvider).collection('users').doc(user.uid).collection('familyProfiles').doc(activeProfileId);
+
+      final doc = await docPath.get();
+      
       if (doc.exists && mounted) {
         final data = doc.data()!;
         setState(() {
           _nameController.text = data['name'] ?? data['fullName'] ?? '';
-          _bioController.text = data['bio'] ?? '';
-          _profileImageUrl = data['profileImage'];
+          _bioController.text = data['bio'] ?? (isSelf ? '' : data['relationship'] ?? '');
+          _profileImageUrl = data['profileImage'] ?? data['photoUrl'];
           
           if (data['age'] != null) _ageController.text = data['age'];
           if (data['gender'] != null) _selectedGender = data['gender'];
           if (data['bloodGroup'] != null) _selectedBlood = data['bloodGroup'];
-          if (data['allergies'] != null) _allergiesController.text = data['allergies'];
-          if (data['chronicDiseases'] != null) _chronicController.text = data['chronicDiseases'];
+          
+          if (data['allergies'] != null) {
+            _allergiesController.text = data['allergies'] is List ? (data['allergies'] as List).join(', ') : data['allergies'];
+          } else {
+             _allergiesController.clear();
+          }
+          if (data['chronicDiseases'] != null) {
+            _chronicController.text = data['chronicDiseases'] is List ? (data['chronicDiseases'] as List).join(', ') : data['chronicDiseases'];
+          } else {
+            _chronicController.clear();
+          }
+          
           if (data['emergencyContactName'] != null) _emergencyNameController.text = data['emergencyContactName'];
           if (data['emergencyContactPhone'] != null) _emergencyPhoneController.text = data['emergencyContactPhone'];
           
-          if (data['familyProfiles'] != null) {
-            _familyProfiles = List<Map<String, dynamic>>.from(data['familyProfiles']);
-          } else {
-            _familyProfiles = [];
+          if (!isSelf && data['emergencyContact'] != null) {
+            _emergencyPhoneController.text = data['emergencyContact'];
+            _emergencyNameController.clear();
           }
+        });
+      }
+
+      // Fetch family profiles for the horizontal list
+      final familySnapshot = await ref.read(firestoreProvider)
+          .collection('users')
+          .doc(user.uid)
+          .collection('familyProfiles')
+          .get();
+          
+      if (mounted) {
+        setState(() {
+          _familyProfiles = familySnapshot.docs.map((d) {
+             final fData = d.data();
+             return {
+                'id': d.id,
+                'name': fData['name'] ?? fData['fullName'],
+                'relation': fData['relationship'],
+                'imageUrl': fData['photoUrl'] ?? fData['profileImage'],
+             };
+          }).toList();
         });
       }
     }
@@ -80,6 +120,13 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(activeProfileProvider, (previous, next) {
+      if (previous != next) {
+        _loadExistingProfile();
+      }
+    });
+
+    final activeProfileId = ref.watch(activeProfileProvider);
     final name = _nameController.text.isNotEmpty ? _nameController.text : 'Arif Ahmed';
     final bloodGroup = _selectedBlood ?? 'O+';
     final patientId = 'e S-8821'; 
@@ -103,6 +150,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           children: [
             const Text(
               ' HealthSathi',
+              //
               style: TextStyle(
                 color: Color(0xFF003D9B),
                 fontWeight: FontWeight.w900,
@@ -116,17 +164,20 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               onPressed: () {},
             ),
             const SizedBox(width: 8),
-            CircleAvatar(
-              radius: 14,
-              backgroundImage: _profileImageUrl != null && _profileImageUrl != 'default'
-                  ? (_profileImageUrl!.startsWith('data:') 
-                      ? MemoryImage(base64Decode(_profileImageUrl!.split(',').last)) as ImageProvider
-                      : NetworkImage(_profileImageUrl!))
-                  : null,
-              backgroundColor: const Color(0xFFD6E4FF),
-              child: (_profileImageUrl == null || _profileImageUrl == 'default')
-                  ? const Icon(Icons.person, size: 18, color: Color(0xFF003D9B))
-                  : null,
+            GestureDetector(
+              onTap: () => showProfileSwitcher(context),
+              child: CircleAvatar(
+                radius: 14,
+                backgroundImage: _profileImageUrl != null && _profileImageUrl != 'default'
+                    ? (_profileImageUrl!.startsWith('data:') 
+                        ? MemoryImage(base64Decode(_profileImageUrl!.split(',').last)) as ImageProvider
+                        : NetworkImage(_profileImageUrl!))
+                    : null,
+                backgroundColor: const Color(0xFFD6E4FF),
+                child: (_profileImageUrl == null || _profileImageUrl == 'default')
+                    ? const Icon(Icons.person, size: 18, color: Color(0xFF003D9B))
+                    : null,
+              ),
             ),
           ],
         ),
@@ -142,25 +193,28 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   Stack(
                     alignment: Alignment.bottomRight,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFF003D9B), width: 3),
+                        GestureDetector(
+                          onTap: () => showProfileSwitcher(context),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFF003D9B), width: 3),
+                            ),
+                            child: CircleAvatar(
+                              radius: 46,
+                              backgroundColor: const Color(0xFFD6E4FF),
+                              backgroundImage: _profileImageUrl != null && _profileImageUrl != 'default'
+                                  ? (_profileImageUrl!.startsWith('data:') 
+                                      ? MemoryImage(base64Decode(_profileImageUrl!.split(',').last)) as ImageProvider
+                                      : NetworkImage(_profileImageUrl!))
+                                  : null,
+                              child: _profileImageUrl == null || _profileImageUrl == 'default' 
+                                  ? const Icon(Icons.person_rounded, size: 48, color: Color(0xFF003D9B))
+                                  : null,
+                            ),
+                          ),
                         ),
-                        child: CircleAvatar(
-                          radius: 46,
-                          backgroundColor: const Color(0xFFD6E4FF),
-                          backgroundImage: _profileImageUrl != null && _profileImageUrl != 'default'
-                              ? (_profileImageUrl!.startsWith('data:') 
-                                  ? MemoryImage(base64Decode(_profileImageUrl!.split(',').last)) as ImageProvider
-                                  : NetworkImage(_profileImageUrl!))
-                              : null,
-                          child: _profileImageUrl == null || _profileImageUrl == 'default' 
-                              ? const Icon(Icons.person_rounded, size: 48, color: Color(0xFF003D9B))
-                              : null,
-                        ),
-                      ),
                       GestureDetector(
                         onTap: () => context.push('/edit-profile').then((_) => _loadExistingProfile()),
                         child: Container(
@@ -381,6 +435,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 32),
+
+            // Family Members
+            _buildSectionHeader('Family Members'),
+            const SizedBox(height: 16),
+            _buildSettingsTile(Icons.family_restroom, 'Family Members', onTap: () => context.push('/family-profiles')),
             const SizedBox(height: 32),
 
             // Account Settings

@@ -1,11 +1,26 @@
 import 'dart:convert';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
+import '../../family/domain/entities/family_profile.dart';
+import '../../family/data/models/family_profile_model.dart';
+
+final familyProfilesStreamProvider = StreamProvider.autoDispose<List<FamilyProfile>>((ref) {
+  final userId = FirebaseAuth.instance.currentUser?.uid;
+  if (userId == null) return Stream.value([]);
+
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(userId)
+      .collection('familyProfiles')
+      .snapshots()
+      .map((snapshot) => snapshot.docs
+          .map((doc) => FamilyProfileModel.fromJson(doc.data()))
+          .toList());
+});
 
 class FamilyProfilesScreen extends ConsumerStatefulWidget {
   const FamilyProfilesScreen({super.key});
@@ -16,45 +31,15 @@ class FamilyProfilesScreen extends ConsumerStatefulWidget {
 
 class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
   final uid = FirebaseAuth.instance.currentUser?.uid;
-  List<Map<String, dynamic>> _familyProfiles = [];
-  String _userName = 'User';
-  String _profileImageUrl = 'default';
-  bool _isLoading = true;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    if (uid == null) return;
-    try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      if (doc.exists && mounted) {
-        final data = doc.data()!;
-        setState(() {
-          _userName = data['name'] ?? 'User';
-          _profileImageUrl = data['profileImage'] ?? 'default';
-          if (data['familyProfiles'] != null) {
-            _familyProfiles = List<Map<String, dynamic>>.from(data['familyProfiles']);
-          }
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _deleteMember(Map<String, dynamic> member) async {
+  Future<void> _deleteMember(FamilyProfile member) async {
     if (uid == null) return;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Remove Member', style: TextStyle(fontWeight: FontWeight.w800)),
-        content: Text('Are you sure you want to remove ${member['name']}?'),
+        content: Text('Are you sure you want to remove ${member.name}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -68,16 +53,20 @@ class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
         ],
       ),
     );
+
     if (confirm == true) {
       try {
-        await FirebaseFirestore.instance.collection('users').doc(uid).update({
-          'familyProfiles': FieldValue.arrayRemove([member]),
-        });
-        _loadData();
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('familyProfiles')
+            .doc(member.profileId)
+            .delete();
+            
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${member['name']} removed successfully'),
+              content: Text('${member.name} removed successfully'),
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
@@ -95,11 +84,7 @@ class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final avatarImage = _profileImageUrl == 'default'
-        ? NetworkImage('https://ui-avatars.com/api/?name=${Uri.encodeComponent(_userName)}&background=003D9B&color=fff')
-        : (_profileImageUrl.startsWith('data:')
-            ? MemoryImage(base64Decode(_profileImageUrl.split(',').last)) as ImageProvider
-            : NetworkImage(_profileImageUrl));
+    final familyProfilesAsync = ref.watch(familyProfilesStreamProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -110,20 +95,15 @@ class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
         titleSpacing: 20,
         title: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                image: DecorationImage(
-                  image: avatarImage,
-                  fit: BoxFit.cover,
-                ),
-              ),
+            IconButton(
+              icon: const Icon(Icons.arrow_back, color: Color(0xFF334155)),
+              onPressed: () => context.pop(),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
             ),
             const SizedBox(width: 12),
             const Text(
-              'e HealthSathi',
+              'Family Members',
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 22,
@@ -136,22 +116,8 @@ class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              color: Color(0xFF334155),
-              size: 26,
-            ),
+            icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF334155), size: 26),
             onPressed: () => context.push('/notifications'),
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.menu_rounded,
-              color: Color(0xFF334155),
-              size: 28,
-            ),
-            onPressed: () {
-               context.go('/home');
-            },
           ),
           const SizedBox(width: 8),
         ],
@@ -160,9 +126,22 @@ class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
           child: Container(color: const Color(0xFFEFF2FE), height: 1.0),
         ),
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator(color: Color(0xFF003D9B)))
-        : SingleChildScrollView(
+      body: familyProfilesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF003D9B))),
+        error: (err, stack) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
+              const SizedBox(height: 16),
+              const Text('Failed to load family members.', style: TextStyle(color: Colors.redAccent)),
+              const SizedBox(height: 8),
+              Text(err.toString(), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            ],
+          ),
+        ),
+        data: (profiles) {
+          return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,11 +168,11 @@ class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Add Family Member Dashed Button
                 GestureDetector(
                   onTap: () {
-                    context.push('/add-family-member').then((_) => _loadData());
+                    context.push('/add-family-member');
                   },
                   child: CustomPaint(
                     painter: DashedBorderPainter(
@@ -237,38 +216,38 @@ class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
                 const SizedBox(height: 20),
 
                 // Family Profiles List
-                if (_familyProfiles.isEmpty)
-                   Padding(
-                     padding: const EdgeInsets.symmetric(vertical: 48.0),
-                     child: Center(
-                       child: Column(
-                         children: [
-                           Icon(Icons.family_restroom_rounded, size: 56, color: Colors.grey.shade300),
-                           const SizedBox(height: 16),
-                           const Text(
-                             'No family members added yet.',
-                             style: TextStyle(
-                               fontFamily: 'Inter',
-                               color: Color(0xFF94A3B8),
-                               fontWeight: FontWeight.w500,
-                               fontSize: 14,
-                             ),
-                           ),
-                           const SizedBox(height: 6),
-                           const Text(
-                             'Tap above to add your first member.',
-                             style: TextStyle(
-                               fontFamily: 'Inter',
-                               color: Color(0xFFB0BEC5),
-                               fontSize: 12.5,
-                             ),
-                           ),
-                         ],
-                       ),
-                     ),
-                   )
+                if (profiles.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 48.0),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.family_restroom_rounded, size: 56, color: Colors.grey.shade300),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'No family members added yet.',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF94A3B8),
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Tap above to add your first member.',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFFB0BEC5),
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
                 else
-                  ..._familyProfiles.asMap().entries.map((entry) {
+                  ...profiles.asMap().entries.map((entry) {
                     final index = entry.key;
                     final member = entry.value;
                     return TweenAnimationBuilder<double>(
@@ -290,20 +269,22 @@ class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
                       ),
                     );
                   }),
-                
+
                 const SizedBox(height: 20),
               ],
             ),
-          ),
+          );
+        },
+      ),
       bottomNavigationBar: const AppBottomNavBar(activeIndex: 4),
     );
   }
 
-  Widget _buildFamilyCard(Map<String, dynamic> member) {
-    final name = member['name'] ?? 'Unknown';
-    final relation = member['relation'] ?? 'Relative';
-    final imageUrl = member['imageUrl'];
-    
+  Widget _buildFamilyCard(FamilyProfile member) {
+    final name = member.name;
+    final relation = member.relationship;
+    final imageUrl = member.photoUrl;
+
     ImageProvider? imageProvider;
     if (imageUrl != null && imageUrl.isNotEmpty) {
       if (imageUrl.startsWith('data:')) {
@@ -317,7 +298,7 @@ class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
     Color pillBg;
     Color pillText;
     final relationLower = relation.toLowerCase();
-    
+
     if (relationLower.contains('spouse') || relationLower.contains('wife') || relationLower.contains('husband')) {
       pillBg = const Color(0xFFD1FAE5);
       pillText = const Color(0xFF059669);
@@ -335,32 +316,6 @@ class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
       pillText = const Color(0xFF4338CA);
     }
 
-    // Build detail rows based on relation
-    List<Widget> details = [];
-    if (relationLower.contains('spouse') || relationLower.contains('wife') || relationLower.contains('husband')) {
-      details = [
-        _buildDetailRow(Icons.calendar_today_rounded, 'Last checkup: Oct 12, 2023', const Color(0xFF64748B)),
-        const SizedBox(height: 6),
-        _buildDetailRow(Icons.vaccines_outlined, 'Up to date on vaccinations', const Color(0xFF64748B)),
-      ];
-    } else if (relationLower.contains('son') || relationLower.contains('child') || relationLower.contains('daughter')) {
-      details = [
-        _buildDetailRow(Icons.calendar_today_rounded, 'Last checkup: Nov 05, 2023', const Color(0xFF64748B)),
-        const SizedBox(height: 6),
-        _buildDetailRow(Icons.warning_amber_rounded, 'Allergy: Peanuts', const Color(0xFFDC2626), iconColor: const Color(0xFFDC2626)),
-      ];
-    } else if (relationLower.contains('mother') || relationLower.contains('father') || relationLower.contains('parent')) {
-      details = [
-        _buildDetailRow(Icons.monitor_heart_outlined, 'Vitals: Blood Pressure Stable', const Color(0xFF64748B)),
-        const SizedBox(height: 6),
-        _buildDetailRow(Icons.medication_outlined, 'Daily meds tracked', const Color(0xFF64748B)),
-      ];
-    } else {
-      details = [
-        _buildDetailRow(Icons.calendar_today_rounded, 'No recent checkup', const Color(0xFF94A3B8)),
-      ];
-    }
-
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -369,7 +324,7 @@ class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
         border: Border.all(color: const Color(0xFFCBD8F0), width: 1.3),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF003D9B).withValues(alpha: 0.04),
+            color: const Color(0xFF003D9B).withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -440,18 +395,24 @@ class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
                 elevation: 8,
                 offset: const Offset(0, 40),
                 onSelected: (value) {
-                  if (value == 'delete') {
+                  if (value == 'edit') {
+                    // Navigate to edit family member screen
+                    // context.push('/edit-family-member', extra: member);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Edit member feature coming soon')),
+                    );
+                  } else if (value == 'delete') {
                     _deleteMember(member);
                   }
                 },
                 itemBuilder: (ctx) => [
                   const PopupMenuItem(
-                    value: 'view',
+                    value: 'edit',
                     child: Row(
                       children: [
-                        Icon(Icons.visibility_outlined, size: 18, color: Color(0xFF64748B)),
-                        SizedBox(width: 10),
-                        Text('View Records', style: TextStyle(fontFamily: 'Inter', fontSize: 13.5)),
+                         Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
+                         SizedBox(width: 10),
+                         Text('Edit Member', style: TextStyle(fontFamily: 'Inter', fontSize: 13.5)),
                       ],
                     ),
                   ),
@@ -478,19 +439,21 @@ class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
           ),
           const SizedBox(height: 14),
           
-          // Details
-          ...details,
+          // Details (Blood Group)
+          _buildDetailRow(Icons.water_drop_outlined, 'Blood Group: ${member.bloodGroup}', const Color(0xFF64748B), iconColor: const Color(0xFF1E3A8A)),
+          
           const SizedBox(height: 18),
           
-          // View Records Button
+          // Switch to Profile (disabled for now as per instructions)
+          /*
           Center(
             child: SizedBox(
               width: 180,
               child: OutlinedButton.icon(
                 onPressed: () {},
-                icon: const Icon(Icons.description_outlined, size: 16),
+                icon: const Icon(Icons.switch_account_outlined, size: 16),
                 label: const Text(
-                  'View Records',
+                  'Switch to Profile',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
@@ -506,6 +469,7 @@ class _FamilyProfilesScreenState extends ConsumerState<FamilyProfilesScreen> {
               ),
             ),
           ),
+          */
         ],
       ),
     );
@@ -552,8 +516,8 @@ class DashedBorderPainter extends CustomPainter {
         const Radius.circular(20),
       ));
 
-    PathMetrics pathMetrics = path.computeMetrics();
-    for (PathMetric pathMetric in pathMetrics) {
+    var pathMetrics = path.computeMetrics();
+    for (var pathMetric in pathMetrics) {
       double extractPathLength = 0.0;
       while (extractPathLength < pathMetric.length) {
         canvas.drawPath(

@@ -393,7 +393,7 @@ class TimelineScreen extends ConsumerWidget {
                                   ],
                                 ),
 
-                                // Thumbnail
+                                // Thumbnail or PDF indicator
                                 if (record.imageUrl != null &&
                                     record.imageUrl!.isNotEmpty) ...[
                                   const SizedBox(height: 12),
@@ -427,6 +427,40 @@ class TimelineScreen extends ConsumerWidget {
                                                 .broken_image_rounded,
                                             color:
                                                 AppColors.outline),
+                                      ),
+                                    ),
+                                  ),
+                                ] else if (record.pdfUrl != null &&
+                                    record.pdfUrl!.isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    height: 100,
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.shade50,
+                                      borderRadius:
+                                          BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: Colors.orange.shade100),
+                                    ),
+                                    child: Center(
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: const [
+                                          Icon(
+                                            Icons.picture_as_pdf_rounded,
+                                            size: 28,
+                                            color: Colors.orange,
+                                          ),
+                                          SizedBox(width: 10),
+                                          Text(
+                                            'PDF Attached',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.orange,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),

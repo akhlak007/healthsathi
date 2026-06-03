@@ -371,9 +371,9 @@ class AppBottomNavBar extends StatelessWidget {
         },
         behavior: HitTestBehavior.opaque,
         child: Center(
-          child: AnimatedContainer(
+            child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
               color: isActive ? const Color(0xFF69F0AE) : Colors.transparent,
               borderRadius: BorderRadius.circular(24),
@@ -384,18 +384,20 @@ class AppBottomNavBar extends StatelessWidget {
                 Icon(
                   isActive ? iconFilled : iconOutline,
                   color: isActive ? const Color(0xFF00695C) : const Color(0xFF334155),
-                  size: 26,
+                  size: 24,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   label,
                   style: TextStyle(
                     fontFamily: 'Inter',
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
                     color: isActive ? const Color(0xFF00695C) : const Color(0xFF334155),
                     letterSpacing: 0.2,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

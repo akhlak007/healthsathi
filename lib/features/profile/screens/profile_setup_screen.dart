@@ -1,10 +1,7 @@
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/clinical_widgets.dart';
 import '../../auth/providers/firebase_auth_provider.dart';
 import '../providers/active_profile_provider.dart';
@@ -31,6 +28,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final _emergencyPhoneController = TextEditingController();
   
   List<Map<String, dynamic>> _familyProfiles = [];
+  Map<String, dynamic>? _selfProfile;
+  String _patientId = 'e S-8821';
 
   @override
   void initState() {
@@ -43,6 +42,19 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     if (user != null) {
       final activeProfileId = ref.read(activeProfileProvider);
       final isSelf = activeProfileId == 'self';
+
+      // Always load the main user's basic profile details (for "Self" card and patient ID)
+      final selfDoc = await ref.read(firestoreProvider).collection('users').doc(user.uid).get();
+      if (selfDoc.exists && mounted) {
+        final selfData = selfDoc.data()!;
+        setState(() {
+          _selfProfile = {
+            'name': selfData['name'] ?? selfData['fullName'] ?? 'Self',
+            'imageUrl': selfData['profileImage'] ?? selfData['photoUrl'],
+          };
+          _patientId = selfData['patientId'] ?? 'e S-8821';
+        });
+      }
 
       final docPath = isSelf
           ? ref.read(firestoreProvider).collection('users').doc(user.uid)
@@ -105,19 +117,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     }
   }
 
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 20);
-    if (pickedFile != null) {
-      final bytes = await pickedFile.readAsBytes();
-      final base64String = base64Encode(bytes);
-      setState(() {
-        _profileImageUrl = 'data:image/jpeg;base64,$base64String';
-      });
-      // Optionally save to firebase immediately here or on save button
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     ref.listen(activeProfileProvider, (previous, next) {
@@ -127,9 +126,15 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     });
 
     final activeProfileId = ref.watch(activeProfileProvider);
-    final name = _nameController.text.isNotEmpty ? _nameController.text : 'Arif Ahmed';
+    final isSelf = activeProfileId == 'self';
+    final name = _nameController.text.isNotEmpty ? _nameController.text : (isSelf ? 'Arif Ahmed' : 'Family Member');
     final bloodGroup = _selectedBlood ?? 'O+';
-    final patientId = 'e S-8821'; 
+    final patientId = _patientId;
+
+    final rawImageUrl = _profileImageUrl;
+    final displayImageUrl = rawImageUrl == 'default' || rawImageUrl == null || rawImageUrl.isEmpty
+        ? 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=003D9B&color=fff'
+        : rawImageUrl; 
 
     List<String> alerts = [];
     if (_allergiesController.text.isNotEmpty || _chronicController.text.isNotEmpty) {
@@ -168,15 +173,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               onTap: () => showProfileSwitcher(context),
               child: CircleAvatar(
                 radius: 14,
-                backgroundImage: _profileImageUrl != null && _profileImageUrl != 'default'
-                    ? (_profileImageUrl!.startsWith('data:') 
-                        ? MemoryImage(base64Decode(_profileImageUrl!.split(',').last)) as ImageProvider
-                        : NetworkImage(_profileImageUrl!))
-                    : null,
-                backgroundColor: const Color(0xFFD6E4FF),
-                child: (_profileImageUrl == null || _profileImageUrl == 'default')
-                    ? const Icon(Icons.person, size: 18, color: Color(0xFF003D9B))
-                    : null,
+                backgroundImage: displayImageUrl.startsWith('data:') 
+                    ? MemoryImage(base64Decode(displayImageUrl.split(',').last)) as ImageProvider
+                    : NetworkImage(displayImageUrl),
               ),
             ),
           ],
@@ -204,14 +203,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                             child: CircleAvatar(
                               radius: 46,
                               backgroundColor: const Color(0xFFD6E4FF),
-                              backgroundImage: _profileImageUrl != null && _profileImageUrl != 'default'
-                                  ? (_profileImageUrl!.startsWith('data:') 
-                                      ? MemoryImage(base64Decode(_profileImageUrl!.split(',').last)) as ImageProvider
-                                      : NetworkImage(_profileImageUrl!))
-                                  : null,
-                              child: _profileImageUrl == null || _profileImageUrl == 'default' 
-                                  ? const Icon(Icons.person_rounded, size: 48, color: Color(0xFF003D9B))
-                                  : null,
+                              backgroundImage: displayImageUrl.startsWith('data:') 
+                                  ? MemoryImage(base64Decode(displayImageUrl.split(',').last)) as ImageProvider
+                                  : NetworkImage(displayImageUrl),
                             ),
                           ),
                         ),
@@ -243,12 +237,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
-                        'Patient ID: ',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      Text(
+                        isSelf ? 'Patient ID: ' : 'Relationship: ',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                       ),
                       Text(
-                        patientId,
+                        isSelf ? patientId : _bioController.text,
                         style: const TextStyle(
                           fontSize: 12,
                           color: Color(0xFF003D9B),
@@ -380,15 +374,41 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     onTap: () => context.push('/add-family-member').then((_) => _loadExistingProfile()),
                     child: _buildAddFamilyCard(),
                   ),
-                  if (_familyProfiles.isNotEmpty) const SizedBox(width: 12),
-                  ..._familyProfiles.map((member) => Padding(
-                    padding: const EdgeInsets.only(right: 12.0),
-                    child: _buildFamilyCard(
-                      member['name'] ?? '',
-                      member['relation'] ?? '',
-                      member['imageUrl'],
+                  const SizedBox(width: 12),
+                  // Self profile card
+                  if (_selfProfile != null) ...[
+                    InkWell(
+                      onTap: () {
+                        ref.read(activeProfileProvider.notifier).setActiveProfile('self');
+                      },
+                      borderRadius: BorderRadius.circular(24),
+                      child: _buildFamilyCard(
+                        _selfProfile!['name'] ?? 'Self',
+                        'Me',
+                        _selfProfile!['imageUrl'],
+                        isActive: activeProfileId == 'self',
+                      ),
                     ),
-                  )).toList(),
+                    const SizedBox(width: 12),
+                  ],
+                  ..._familyProfiles.map((member) {
+                    final isMemberActive = activeProfileId == member['id'];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12.0),
+                      child: InkWell(
+                        onTap: () {
+                          ref.read(activeProfileProvider.notifier).setActiveProfile(member['id']);
+                        },
+                        borderRadius: BorderRadius.circular(24),
+                        child: _buildFamilyCard(
+                          member['name'] ?? '',
+                          member['relation'] ?? '',
+                          member['imageUrl'],
+                          isActive: isMemberActive,
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ],
               ),
             ),
@@ -535,30 +555,47 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: const [
           Icon(Icons.add_circle_outline_rounded, color: Color(0xFF64748B), size: 28),
-          SizedBox(height: 12),
-          Text('Add New', style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+          SizedBox(height: 6),
+          Text(
+            'Add New',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildFamilyCard(String name, String relation, String? imageUrl) {
+  Widget _buildFamilyCard(String name, String relation, String? imageUrl, {bool isActive = false}) {
     ImageProvider? imageProvider;
-    if (imageUrl != null && imageUrl.isNotEmpty) {
+    if (imageUrl != null && imageUrl.isNotEmpty && imageUrl != 'default') {
       if (imageUrl.startsWith('data:')) {
         imageProvider = MemoryImage(base64Decode(imageUrl.split(',').last));
       } else {
         imageProvider = NetworkImage(imageUrl);
       }
+    } else {
+      imageProvider = NetworkImage('https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=${isActive ? "fff&color=003D9B" : "003D9B&color=fff"}');
     }
 
     return Container(
       width: 116,
       height: 140,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFE5EDFF),
+        color: isActive ? const Color(0xFF003D9B) : const Color(0xFFE5EDFF),
         borderRadius: BorderRadius.circular(24),
+        border: isActive ? Border.all(color: Colors.white, width: 2) : null,
+        boxShadow: isActive
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF003D9B).withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -566,21 +603,31 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           CircleAvatar(
             radius: 22,
             backgroundImage: imageProvider,
-            backgroundColor: const Color(0xFFD6E4FF),
-            child: imageProvider == null ? const Icon(Icons.person, color: Color(0xFF003D9B)) : null,
+            backgroundColor: isActive ? Colors.white24 : const Color(0xFFD6E4FF),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
           Text(
             name,
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: isActive ? Colors.white : const Color(0xFF1E293B),
+            ),
           ),
           const SizedBox(height: 2),
           Text(
             relation,
-            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: isActive ? Colors.white.withOpacity(0.8) : const Color(0xFF64748B),
+            ),
           ),
         ],
       ),

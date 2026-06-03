@@ -212,110 +212,117 @@ class HomeScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
 
                   // 3. Side-by-Side Bento Quick Stats Cards
-                  Row(
-                    children: [
-                      // Blood Group Card
-                      Expanded(
-                        child: Container(
-                          height: 154,
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE5EDFF),
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 32,
-                                height: 32,
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Blood Group Card
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(18),
+                            constraints: const BoxConstraints(minHeight: 154),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE5EDFF),
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.water_drop_rounded,
+                                    color: Color(0xFF1E3A8A),
+                                    size: 16,
+                                  ),
                                 ),
-                                child: const Icon(
-                                  Icons.water_drop_rounded,
-                                  color: Color(0xFF1E3A8A),
-                                  size: 16,
+                                const Spacer(),
+                                const Text(
+                                  'Blood Group',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 12.5,
+                                    color: Color(0xFF3F51B5),
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                              const Spacer(),
-                              const Text(
-                                'Blood Group',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12.5,
-                                  color: Color(0xFF3F51B5),
-                                  fontWeight: FontWeight.w600,
+                                const SizedBox(height: 1),
+                                Text(
+                                  bloodGroup,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: bloodGroup.length > 3 ? 24 : 34,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF1E3A8A),
+                                    height: 1.15,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 1),
-                              Text(
-                                bloodGroup,
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF1E3A8A),
-                                  height: 1.15,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      // Allergies Card
-                      Expanded(
-                        child: Container(
-                          height: 154,
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF5EEAD4),
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 32,
-                                height: 32,
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.warning_rounded,
-                                  color: Color(0xFF115E59),
-                                  size: 16,
-                                ),
-                              ),
-                              const Spacer(),
-                              const Text(
-                                'Allergies',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12.5,
-                                  color: Color(0xFF0F766E),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 1),
-                              Text(
-                                allergies.isEmpty ? 'None\nReported' : allergies,
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF064E3B),
-                                  height: 1.1,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 16),
+                        // Allergies Card
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(18),
+                            constraints: const BoxConstraints(minHeight: 154),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF5EEAD4),
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.warning_rounded,
+                                    color: Color(0xFF115E59),
+                                    size: 16,
+                                  ),
+                                ),
+                                const Spacer(),
+                                const Text(
+                                  'Allergies',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 12.5,
+                                    color: Color(0xFF0F766E),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 1),
+                                Text(
+                                  allergies.isEmpty ? 'None\nReported' : allergies,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF064E3B),
+                                    height: 1.1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
 

@@ -82,7 +82,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 20);
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 40,
+      maxWidth: 250,
+      maxHeight: 250,
+    );
     if (pickedFile != null) {
       final bytes = await pickedFile.readAsBytes();
       final base64String = base64Encode(bytes);
@@ -101,6 +106,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     });
 
     final textTheme = Theme.of(context).textTheme;
+    final name = _nameController.text.isNotEmpty ? _nameController.text : 'User';
+    final rawImageUrl = _profileImageUrl;
+    final displayImageUrl = rawImageUrl == 'default' || rawImageUrl == null || rawImageUrl.isEmpty
+        ? 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=003D9B&color=fff'
+        : rawImageUrl;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -144,14 +154,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           child: CircleAvatar(
                             radius: 50,
                             backgroundColor: AppColors.background,
-                            backgroundImage: _profileImageUrl != null && _profileImageUrl != 'default'
-                                ? (_profileImageUrl!.startsWith('data:') 
-                                    ? MemoryImage(base64Decode(_profileImageUrl!.split(',').last)) as ImageProvider
-                                    : NetworkImage(_profileImageUrl!))
-                                : null,
-                            child: _profileImageUrl == null || _profileImageUrl == 'default' 
-                                ? const Icon(Icons.person_rounded, size: 54, color: AppColors.primary)
-                                : null,
+                            backgroundImage: displayImageUrl.startsWith('data:') 
+                                ? MemoryImage(base64Decode(displayImageUrl.split(',').last)) as ImageProvider
+                                : NetworkImage(displayImageUrl),
                           ),
                         ),
                         Container(
@@ -412,7 +417,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                        updateData['emergencyContactPhone'] = _emergencyPhoneController.text.trim();
                     }
 
-                    await docPath.set(updateData, SetOptions(merge: true));
+                    await docPath.set(updateData, SetOptions(merge: true))
+                        .timeout(const Duration(seconds: 15), onTimeout: () {
+                          throw Exception('Connection timed out. Please check your internet connection.');
+                        });
                     
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(

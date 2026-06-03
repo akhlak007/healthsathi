@@ -34,7 +34,12 @@ class _AddFamilyMemberScreenState extends ConsumerState<AddFamilyMemberScreen> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 40,
+      maxWidth: 250,
+      maxHeight: 250,
+    );
     if (pickedFile != null) {
       final bytes = await pickedFile.readAsBytes();
       setState(() {
@@ -114,7 +119,10 @@ class _AddFamilyMemberScreenState extends ConsumerState<AddFamilyMemberScreen> {
           .doc(userId)
           .collection('familyProfiles')
           .doc(profileId)
-          .set(newMemberData);
+          .set(newMemberData)
+          .timeout(const Duration(seconds: 15), onTimeout: () {
+            throw Exception('Connection timed out. Please check your internet connection and try again.');
+          });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

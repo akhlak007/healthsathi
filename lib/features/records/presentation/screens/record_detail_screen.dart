@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
 import '../../../upload/domain/entities/ocr_record.dart';
@@ -37,6 +38,16 @@ class RecordDetailScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.primary),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/timeline');
+            }
+          },
+        ),
         title: const Text('Record Details', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -93,20 +104,23 @@ class RecordDetailScreen extends ConsumerWidget {
             ),
           
           if (record.pdfUrl != null && record.pdfUrl!.isNotEmpty)
-            Container(
-              height: 120,
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.picture_as_pdf_rounded, size: 48, color: Colors.orange),
-                  SizedBox(height: 8),
-                  Text('PDF Document Attached', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
-                ],
+            GestureDetector(
+              onTap: () => _openExternalUrl(context, record.pdfUrl!),
+              child: Container(
+                height: 120,
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.picture_as_pdf_rounded, size: 48, color: Colors.orange),
+                    SizedBox(height: 8),
+                    Text('PDF Document Attached', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                  ],
+                ),
               ),
             ),
 
@@ -159,18 +173,6 @@ class RecordDetailScreen extends ConsumerWidget {
             const SizedBox(height: 24),
           ],
 
-          // OCR Text
-          const Text('Extracted Text', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 12),
-          MedicalCard(
-            backgroundColor: Colors.white,
-            child: Text(
-              record.ocrText.isNotEmpty ? record.ocrText : 'No text available.',
-              style: const TextStyle(height: 1.5, color: Colors.black87),
-            ),
-          ),
-          const SizedBox(height: 24),
-
           // Notes
           if (record.notes.isNotEmpty) ...[
             const Text('Notes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -207,6 +209,19 @@ class RecordDetailScreen extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _openExternalUrl(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open attachment.')),
+        );
+      }
+    }
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {

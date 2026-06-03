@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -51,6 +50,7 @@ class UploadState {
   final List<String> medicines;
   final String notes;
   final String recordType;
+  final String recordLabel;
   final String? errorMessage;
   final String? imageUrl;
 
@@ -64,7 +64,8 @@ class UploadState {
     this.date,
     this.medicines = const [],
     this.notes = '',
-    this.recordType = 'Prescription',
+    this.recordType = 'prescription',
+    this.recordLabel = '',
     this.errorMessage,
     this.imageUrl,
   });
@@ -215,6 +216,7 @@ class UploadNotifier extends StateNotifier<UploadState> {
       final hospitalName = _extractHospital(rawText);
       final parsedDate = _extractDate(rawText);
       final medicines = _extractMedicines(rawText);
+      final recordLabel = _suggestRecordLabel(rawText, medicines);
 
       state = state.copyWith(
         status: UploadStatus.reviewing,
@@ -223,6 +225,7 @@ class UploadNotifier extends StateNotifier<UploadState> {
         hospitalName: hospitalName,
         date: parsedDate,
         medicines: medicines,
+        recordLabel: recordLabel,
       );
     } catch (e) {
       state = state.copyWith(
@@ -296,6 +299,9 @@ class UploadNotifier extends StateNotifier<UploadState> {
       case 'recordType':
         state = state.copyWith(recordType: value as String);
         break;
+      case 'recordLabel':
+        state = state.copyWith(recordLabel: value as String);
+        break;
       case 'ocrText':
         state = state.copyWith(ocrText: value as String);
         break;
@@ -313,6 +319,37 @@ class UploadNotifier extends StateNotifier<UploadState> {
     state = state.copyWith(medicines: updated);
   }
 
+  String _suggestRecordLabel(String rawText, List<String> medicines) {
+    final lower = rawText.toLowerCase();
+    const diseaseKeywords = {
+      'diabetes': 'Diabetes Prescription',
+      'hypertension': 'Hypertension Prescription',
+      'blood pressure': 'Blood Pressure Prescription',
+      'fever': 'Fever Treatment',
+      'cough': 'Cough Prescription',
+      'asthma': 'Asthma Prescription',
+      'infection': 'Infection Prescription',
+      'pain': 'Pain Relief Prescription',
+      'headache': 'Headache Prescription',
+      'cold': 'Cold Prescription',
+      'stomach': 'Stomach Prescription',
+      'diarrhea': 'Diarrhea Prescription',
+    };
+
+    for (final entry in diseaseKeywords.entries) {
+      if (lower.contains(entry.key)) {
+        return entry.value;
+      }
+    }
+
+    if (medicines.isNotEmpty) {
+      final firstMedication = medicines.first.split(' ').first;
+      return 'Prescription for $firstMedication';
+    }
+
+    return 'Prescription';
+  }
+
   // ---- Upload & save ---------------------------------------------------
 
   Future<void> uploadAndSave() async {
@@ -325,21 +362,31 @@ class UploadNotifier extends StateNotifier<UploadState> {
       return;
     }
 
+    final bool isPdf = state.pdfPath != null;
+    final String? filePath = isPdf ? state.pdfPath : state.imagePath;
+
+    // Pre-check: make sure the picked file still exists on disk.
+    if (filePath == null || !File(filePath).existsSync()) {
+      state = state.copyWith(
+        status: UploadStatus.error,
+        errorMessage:
+            'The selected file is no longer available. '
+            'Please go back and pick the image or PDF again.',
+      );
+      return;
+    }
+
     try {
       state = state.copyWith(status: UploadStatus.uploading);
 
       String? downloadUrl;
-      final bool isPdf = state.pdfPath != null;
-      final String? filePath = isPdf ? state.pdfPath : state.imagePath;
 
-      if (filePath != null) {
-        downloadUrl = await _repository.uploadFile(
-          userId: user.uid,
-          activeProfileId: _activeProfileId,
-          filePath: filePath,
-          isPdf: isPdf,
-        );
-      }
+      downloadUrl = await _repository.uploadFile(
+        userId: user.uid,
+        activeProfileId: _activeProfileId,
+        filePath: filePath,
+        isPdf: isPdf,
+      );
 
       state = state.copyWith(status: UploadStatus.saving);
 
@@ -349,6 +396,7 @@ class UploadNotifier extends StateNotifier<UploadState> {
       final record = OcrRecord(
         id: recordId,
         recordType: state.recordType,
+        recordLabel: state.recordLabel,
         doctorName: state.doctorName,
         hospitalName: state.hospitalName,
         date: state.date ?? now,

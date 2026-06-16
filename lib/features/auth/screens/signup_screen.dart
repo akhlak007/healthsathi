@@ -126,6 +126,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
                         contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                         filled: true,
+                        //
                         fillColor: const Color(0xFFF8FAFC),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),

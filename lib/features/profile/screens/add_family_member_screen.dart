@@ -92,7 +92,7 @@ class _AddFamilyMemberScreenState extends ConsumerState<AddFamilyMemberScreen> {
       final profileId = FirebaseFirestore.instance.collection('users').doc().id; // generate ID
       String? photoUrl;
 
-      // Encode image as base64 data URL (avoids Firebase Storage CORS issues on web)
+      // Encode image as base64 data URL for safe Firestore storage on web
       if (_profileImageBytes != null) {
         final base64Str = base64Encode(_profileImageBytes!);
         photoUrl = 'data:image/jpeg;base64,$base64Str';

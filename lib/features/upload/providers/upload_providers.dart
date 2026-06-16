@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -13,8 +14,8 @@ import '../../profile/providers/active_profile_provider.dart';
 // Repository provider
 // ---------------------------------------------------------------------------
 
-final ocrRecordRepositoryProvider = Provider<FirebaseOcrRecordRepository>((ref) {
-  return FirebaseOcrRecordRepository();
+final ocrRecordRepositoryProvider = Provider<CloudinaryOcrRecordRepository>((ref) {
+  return CloudinaryOcrRecordRepository();
 });
 
 // ---------------------------------------------------------------------------
@@ -43,6 +44,9 @@ class UploadState {
   final UploadStatus status;
   final String? imagePath;
   final String? pdfPath;
+  final Uint8List? fileBytes;
+  final String? fileName;
+  final String? fileExtension;
   final String ocrText;
   final String doctorName;
   final String hospitalName;
@@ -53,11 +57,15 @@ class UploadState {
   final String recordLabel;
   final String? errorMessage;
   final String? imageUrl;
+  final String? savedRecordId;
 
-  const UploadState({
+  UploadState({
     this.status = UploadStatus.idle,
     this.imagePath,
     this.pdfPath,
+    this.fileBytes,
+    this.fileName,
+    this.fileExtension,
     this.ocrText = '',
     this.doctorName = '',
     this.hospitalName = '',
@@ -68,12 +76,16 @@ class UploadState {
     this.recordLabel = '',
     this.errorMessage,
     this.imageUrl,
+    this.savedRecordId,
   });
 
   UploadState copyWith({
     UploadStatus? status,
     String? imagePath,
     String? pdfPath,
+    Uint8List? fileBytes,
+    String? fileName,
+    String? fileExtension,
     String? ocrText,
     String? doctorName,
     String? hospitalName,
@@ -84,11 +96,15 @@ class UploadState {
     String? recordLabel,
     String? errorMessage,
     String? imageUrl,
+    String? savedRecordId,
   }) {
     return UploadState(
       status: status ?? this.status,
       imagePath: imagePath ?? this.imagePath,
       pdfPath: pdfPath ?? this.pdfPath,
+      fileBytes: fileBytes ?? this.fileBytes,
+      fileName: fileName ?? this.fileName,
+      fileExtension: fileExtension ?? this.fileExtension,
       ocrText: ocrText ?? this.ocrText,
       doctorName: doctorName ?? this.doctorName,
       hospitalName: hospitalName ?? this.hospitalName,
@@ -99,6 +115,7 @@ class UploadState {
       recordLabel: recordLabel ?? this.recordLabel,
       errorMessage: errorMessage ?? this.errorMessage,
       imageUrl: imageUrl ?? this.imageUrl,
+      savedRecordId: savedRecordId ?? this.savedRecordId,
     );
   }
 }
@@ -108,9 +125,9 @@ class UploadState {
 // ---------------------------------------------------------------------------
 
 class UploadNotifier extends StateNotifier<UploadState> {
-  UploadNotifier(this._repository, this._activeProfileId) : super(const UploadState());
+  UploadNotifier(this._repository, this._activeProfileId) : super(UploadState());
 
-  final FirebaseOcrRecordRepository _repository;
+  final CloudinaryOcrRecordRepository _repository;
   final String _activeProfileId;
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -131,6 +148,9 @@ class UploadNotifier extends StateNotifier<UploadState> {
         status: UploadStatus.processing,
         imagePath: photo.path,
         pdfPath: null,
+        fileBytes: await photo.readAsBytes(),
+        fileName: photo.name,
+        fileExtension: 'jpg',
       );
       await performOcr();
     } catch (e) {
@@ -156,6 +176,9 @@ class UploadNotifier extends StateNotifier<UploadState> {
         status: UploadStatus.processing,
         imagePath: image.path,
         pdfPath: null,
+        fileBytes: await image.readAsBytes(),
+        fileName: image.name,
+        fileExtension: image.name.split('.').last.toLowerCase(),
       );
       await performOcr();
     } catch (e) {
@@ -172,16 +195,43 @@ class UploadNotifier extends StateNotifier<UploadState> {
       final FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
+        // On mobile, withData reads bytes directly into memory.
+        // On web, this is required since there is no file path.
+        withData: kIsWeb,
       );
-      if (result == null || result.files.single.path == null) {
+      if (result == null || result.files.isEmpty) {
         state = state.copyWith(status: UploadStatus.idle);
         return;
       }
+
+      final file = result.files.single;
+
+      // file.bytes is populated on Web; on Android/iOS we must read from path.
+      Uint8List? bytes = file.bytes;
+      if (bytes == null && file.path != null) {
+        try {
+          bytes = await File(file.path!).readAsBytes();
+        } catch (e) {
+          print('[PDF] Failed to read bytes from path: $e');
+        }
+      }
+
+      if (bytes == null) {
+        state = state.copyWith(
+          status: UploadStatus.error,
+          errorMessage: 'Could not read the PDF file. Please try again.',
+        );
+        return;
+      }
+
       state = state.copyWith(
         status: UploadStatus.reviewing, // Skip OCR for PDF in V1, go straight to review
-        pdfPath: result.files.single.path,
+        pdfPath: file.path,
         imagePath: null,
-        ocrText: 'PDF Uploaded (OCR not supported for PDFs yet in V1)',
+        fileBytes: bytes,
+        fileName: file.name,
+        fileExtension: 'pdf',
+        ocrText: 'PDF uploaded — OCR extraction for PDFs coming soon.',
         recordType: 'pdf_report',
       );
     } catch (e) {
@@ -207,11 +257,18 @@ class UploadNotifier extends StateNotifier<UploadState> {
     try {
       state = state.copyWith(status: UploadStatus.extracting);
 
-      final inputImage = InputImage.fromFilePath(state.imagePath!);
-      final RecognizedText recognizedText =
-          await textRecognizer.processImage(inputImage);
+      // Note: On Web, Google ML Kit Text Recognition might require custom handling
+      // or an alternative like Tesseract.js. For now, we attempt to use the path 
+      // if available, but wrap it to prevent crashes on unsupported platforms.
+      RecognizedText? recognizedText;
+      try {
+        final inputImage = InputImage.fromFilePath(state.imagePath!);
+        recognizedText = await textRecognizer.processImage(inputImage);
+      } catch (e) {
+        print('[OCR] Text recognition is not fully supported on this platform or failed: $e');
+      }
 
-      final rawText = recognizedText.text;
+      final rawText = recognizedText?.text ?? '';
 
       // --- Parse fields from OCR text using regex -----------------------
       final doctorName = _extractDoctor(rawText);
@@ -364,11 +421,9 @@ class UploadNotifier extends StateNotifier<UploadState> {
       return;
     }
 
-    final bool isPdf = state.pdfPath != null;
-    final String? filePath = isPdf ? state.pdfPath : state.imagePath;
+    final bool isPdf = state.fileExtension == 'pdf' || state.pdfPath != null;
 
-    // Pre-check: make sure the picked file still exists on disk.
-    if (filePath == null || !File(filePath).existsSync()) {
+    if (state.fileBytes == null && (state.imagePath == null && state.pdfPath == null)) {
       state = state.copyWith(
         status: UploadStatus.error,
         errorMessage:
@@ -386,14 +441,16 @@ class UploadNotifier extends StateNotifier<UploadState> {
       downloadUrl = await _repository.uploadFile(
         userId: user.uid,
         activeProfileId: _activeProfileId,
-        filePath: filePath,
+        fileBytes: state.fileBytes,
+        filePath: isPdf ? state.pdfPath : state.imagePath,
+        fileName: state.fileName ?? '${DateTime.now().millisecondsSinceEpoch}.${isPdf ? 'pdf' : 'jpg'}',
         isPdf: isPdf,
       );
 
       state = state.copyWith(status: UploadStatus.saving);
 
       final now = DateTime.now();
-      final recordId = now.millisecondsSinceEpoch.toString();
+      final recordId = now.microsecondsSinceEpoch.toString();
 
       final record = OcrRecord(
         id: recordId,
@@ -414,14 +471,15 @@ class UploadNotifier extends StateNotifier<UploadState> {
       );
 
       await _repository.saveRecord(
-        userId: user.uid, 
-        activeProfileId: _activeProfileId, 
+        userId: user.uid,
+        activeProfileId: _activeProfileId,
         record: record,
       );
 
       state = state.copyWith(
         status: UploadStatus.success,
         imageUrl: downloadUrl,
+        savedRecordId: recordId,
       );
     } catch (e) {
       state = state.copyWith(
@@ -434,7 +492,7 @@ class UploadNotifier extends StateNotifier<UploadState> {
   // ---- Reset -----------------------------------------------------------
 
   void reset() {
-    state = const UploadState();
+    state = UploadState();
   }
 }
 

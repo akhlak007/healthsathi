@@ -2,14 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
 import '../providers/upload_providers.dart';
-import '../domain/entities/ocr_record.dart';
+import '../../medicine_reminders/presentation/screens/add_reminder_screen.dart';
 
 class UploadScreen extends ConsumerStatefulWidget {
   const UploadScreen({super.key});
@@ -103,11 +99,11 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
           key: 'uploading',
           title: 'Saving to Cloud...',
           subtitle:
-              'Uploading your record to secure Firebase Storage and syncing metadata.',
+              'Uploading your record to secure Cloudinary storage and syncing metadata.',
           icon: Icons.cloud_upload_rounded,
         );
       case UploadStatus.success:
-        return _buildSuccessScreen(notifier);
+        return _buildSuccessScreen(state, notifier);
       case UploadStatus.error:
         return _buildErrorScreen(state, notifier);
     }
@@ -437,6 +433,24 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
           onPressed: () => notifier.uploadAndSave(),
         ),
         const SizedBox(height: 12),
+        if (state.medicines.isNotEmpty) ...[
+          ClinicalButton(
+            label: 'Create Medicine Reminder',
+            backgroundColor: const Color(0xFFD1FAE5),
+            foregroundColor: const Color(0xFF065F46),
+            icon: Icons.notification_add_rounded,
+            onPressed: () {
+              final medicineName = state.medicines.first;
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) => AddReminderScreen(
+                  initialMedicineName: medicineName,
+                  initialDosage: '1', // Default dosage or extract if available
+                ),
+              ));
+            },
+          ),
+          const SizedBox(height: 12),
+        ],
         ClinicalButton(
           label: 'Scan Again',
           backgroundColor: Colors.transparent,
@@ -471,6 +485,12 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
             ],
             onChanged: (val) =>
                 notifier.updateField('recordType', val ?? 'prescription'),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            initialValue: state.recordLabel,
+            decoration: _inputDecoration('Prescription Tag / Title'),
+            onChanged: (val) => notifier.updateField('recordLabel', val),
           ),
           const SizedBox(height: 16),
 
@@ -575,7 +595,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
   }
 
   // ─── SUCCESS SCREEN ──────────────────────────────────────────────
-  Widget _buildSuccessScreen(UploadNotifier notifier) {
+  Widget _buildSuccessScreen(UploadState state, UploadNotifier notifier) {
     return Column(
       key: const ValueKey('success'),
       children: [
@@ -610,6 +630,18 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
           ),
         ),
         const SizedBox(height: 48),
+        if (state.savedRecordId != null) ...[
+          ClinicalButton(
+            label: 'View Record',
+            icon: Icons.receipt_long_rounded,
+            onPressed: () {
+              final recordId = state.savedRecordId!;
+              notifier.reset();
+              context.go('/record/$recordId');
+            },
+          ),
+          const SizedBox(height: 12),
+        ],
         ClinicalButton(
           label: 'View Timeline',
           icon: Icons.history_edu_rounded,

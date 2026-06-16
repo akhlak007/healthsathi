@@ -113,7 +113,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         : rawImageUrl;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
@@ -129,58 +129,59 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Profile photo upload area
-            Center(
-              child: Column(
-                children: [
-                  GestureDetector(
-                    onTap: _pickImage,
-                    child: Stack(
-                      alignment: Alignment.bottomRight,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.primary.withOpacity(0.1), width: 2),
-                            boxShadow: [
-                              const BoxShadow(
-                                color: Color(0x0A000000),
-                                blurRadius: 10,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
+            MedicalCard(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 2),
+                              boxShadow: [
+                                const BoxShadow(
+                                  color: Color(0x1A000000),
+                                  blurRadius: 12,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: CircleAvatar(
+                              radius: 60,
+                              backgroundColor: Colors.white,
+                              backgroundImage: displayImageUrl.startsWith('data:')
+                                  ? MemoryImage(base64Decode(displayImageUrl.split(',').last)) as ImageProvider
+                                  : NetworkImage(displayImageUrl),
+                            ),
                           ),
-                          child: CircleAvatar(
-                            radius: 50,
-                            backgroundColor: AppColors.background,
-                            backgroundImage: displayImageUrl.startsWith('data:') 
-                                ? MemoryImage(base64Decode(displayImageUrl.split(',').last)) as ImageProvider
-                                : NetworkImage(displayImageUrl),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Upload Patient Photo', 
-                    style: textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+                    const SizedBox(height: 16),
+                    Text(
+                      'Upload Patient Photo',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
             const SizedBox(height: 32),
 
             // Card 1: Basic Information
@@ -196,40 +197,64 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   
                   _buildInputLabel('FULL NAME'),
                   TextField(
-                    controller: _nameController,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.person_outline, size: 18),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      controller: _nameController,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                      decoration: InputDecoration(
+                        labelText: 'Full Name',
+                        prefixIcon: const Icon(Icons.person_outline, size: 20),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.outlineVariant),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 16),
 
                   _buildInputLabel('SHORT BIO'),
                   TextField(
-                    controller: _bioController,
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      hintText: 'A short description about yourself...',
-                      prefixIcon: const Padding(
-                        padding: EdgeInsets.only(bottom: 24.0),
-                        child: Icon(Icons.info_outline, size: 18),
+                      controller: _bioController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        labelText: 'Short Bio',
+                        hintText: 'A short description about yourself... ',
+                        prefixIcon: const Icon(Icons.info_outline, size: 20),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.outlineVariant),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
+                        ),
                       ),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                  ),
                   const SizedBox(height: 16),
                   
                   _buildInputLabel('AGE (IN YEARS)'),
                   TextField(
-                    controller: _ageController,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      controller: _ageController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                      decoration: InputDecoration(
+                        labelText: 'Age',
+                        prefixIcon: const Icon(Icons.calendar_today_outlined, size: 20),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.outlineVariant),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 16),
                   
                   _buildInputLabel('GENDER'),
@@ -270,47 +295,66 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   
                   _buildInputLabel('BLOOD GROUP'),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map((blood) {
-                      final selected = _selectedBlood == blood;
-                      return ChoiceChip(
-                        label: Text(blood, style: TextStyle(fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
-                        selected: selected,
-                        selectedColor: AppColors.primary.withOpacity(0.1),
-                        checkmarkColor: AppColors.primary,
-                        labelStyle: TextStyle(color: selected ? AppColors.primary : AppColors.onSurfaceVariant),
-                        side: BorderSide(color: selected ? AppColors.primary : AppColors.outlineVariant),
-                        onSelected: (val) {
-                          if (val) setState(() => _selectedBlood = blood);
-                        },
-                      );
-                    }).toList(),
-                  ),
+                     spacing: 8,
+                     runSpacing: 8,
+                     children: ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map((blood) {
+                       final selected = _selectedBlood == blood;
+                       return ChoiceChip(
+                         label: Text(blood, style: TextStyle(fontWeight: selected ? FontWeight.w600 : FontWeight.normal)),
+                         selected: selected,
+                         selectedColor: AppColors.primary.withOpacity(0.15),
+                         checkmarkColor: AppColors.primary,
+                         labelStyle: TextStyle(color: selected ? AppColors.primary : AppColors.onSurfaceVariant),
+                         side: BorderSide(color: selected ? AppColors.primary : AppColors.outlineVariant, width: 1),
+                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                         onSelected: (val) {
+                           if (val) setState(() => _selectedBlood = blood);
+                         },
+                       );
+                     }).toList(),
+                   ),
                   const SizedBox(height: 20),
                   
                   _buildInputLabel('ALLERGIES & DRUG SENSITIVITIES'),
                   TextField(
-                    controller: _allergiesController,
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      hintText: 'e.g. Penicillin, Peanuts, Latex. Leave empty if none.',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.all(12),
+                      controller: _allergiesController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        labelText: 'Allergies & Drug Sensitivities',
+                        hintText: 'e.g. Penicillin, Peanuts, Latex',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.all(12),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.outlineVariant),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 16),
                   
                   _buildInputLabel('CHRONIC DISEASES & COMPLETED SURGERIES'),
                   TextField(
-                    controller: _chronicController,
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      hintText: 'e.g. Hypertension, Diabetes Type 2, Asthma.',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.all(12),
+                      controller: _chronicController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        labelText: 'Chronic Diseases & Surgeries',
+                        hintText: 'e.g. Hypertension, Diabetes Type 2, Asthma',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.all(12),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.outlineVariant),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -329,25 +373,43 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   
                   _buildInputLabel('CONTACT RESPONDER NAME'),
                   TextField(
-                    controller: _emergencyNameController,
-                    decoration: InputDecoration(
-                      hintText: "Relationship & Full Name (e.g. Mother - Salma Ahmed)",
-                      prefixIcon: const Icon(Icons.family_restroom_outlined, size: 18),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      controller: _emergencyNameController,
+                      decoration: InputDecoration(
+                        labelText: 'Contact Responder Name',
+                        hintText: "Relationship & Full Name (e.g. Mother - Salma Ahmed)",
+                        prefixIcon: const Icon(Icons.family_restroom_outlined, size: 20),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.outlineVariant),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 16),
                   
                   _buildInputLabel('RESPONDER MOBILE PHONE'),
                   TextField(
-                    controller: _emergencyPhoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      hintText: "017XXXXXXXX",
-                      prefixIcon: const Icon(Icons.phone, size: 18),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      controller: _emergencyPhoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        labelText: 'Responder Mobile Phone',
+                        hintText: "017XXXXXXXX",
+                        prefixIcon: const Icon(Icons.phone, size: 20),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.outlineVariant),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -447,15 +509,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Widget _buildInputLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 2.0),
       child: Text(
         text,
         style: const TextStyle(
-          fontFamily: 'JetBrains Mono',
+          fontWeight: FontWeight.w600,
           fontSize: 10.5,
-          fontWeight: FontWeight.bold,
           color: AppColors.primary,
-          letterSpacing: 1.0,
         ),
       ),
     );

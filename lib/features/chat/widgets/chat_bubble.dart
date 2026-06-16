@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:ui';
 import '../domain/models/chat_message.dart';
-
+import 'package:health_sathi/features/upload/screens/file_preview_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 class ChatBubble extends StatelessWidget {
   final ChatMessage message;
 
@@ -26,15 +29,23 @@ class ChatBubble extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         if (message.imageUrl != null)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.network(
-              message.imageUrl!,
+          GestureDetector(
+            onTap: () {
+              final url = message.imageUrl!;
+              final path = Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
+              if (path.endsWith('.pdf')) {
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => FilePreviewScreen(fileUrl: url)));
+              } else {
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => FilePreviewScreen(fileUrl: url)));
+              }
+            },
+            child: CachedNetworkImage(
+              imageUrl: message.imageUrl!,
               height: 180,
               width: 180,
               fit: BoxFit.cover,
-              loadingBuilder: (_, child, progress) =>
-                  progress == null ? child : const SizedBox(height: 180, width: 180, child: Center(child: CircularProgressIndicator())),
+              placeholder: (context, url) => const SizedBox(height: 180, width: 180, child: Center(child: CircularProgressIndicator())),
+              errorWidget: (context, url, error) => const Icon(Icons.error, size: 48),
             ),
           ),
         if (message.text.isNotEmpty)
@@ -43,7 +54,7 @@ class ChatBubble extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF0052CC), Color(0xFF003D9B)],
+                colors: [Color(0xFF64B5F6), Color(0xFF42A5F5)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -55,7 +66,7 @@ class ChatBubble extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF003D9B).withValues(alpha: 0.3),
+                  color: const Color(0xFF0096C7).withOpacity(0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
@@ -102,7 +113,7 @@ class ChatBubble extends StatelessWidget {
           bottomRight: Radius.circular(20),
         ),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -145,23 +156,42 @@ class ChatBubble extends StatelessWidget {
   }
 
   Widget _buildPlainTextBubble() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(4),
-          topRight: Radius.circular(20),
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(4),
+            topRight: Radius.circular(20),
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.6),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(4),
+                  topRight: Radius.circular(20),
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Text(
+                message.text,
+                style: const TextStyle(color: Color(0xFF1E293B), fontSize: 14.5, fontFamily: 'Inter', height: 1.5),
+              ),
+            ),
+          ),
         ),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Text(
-        message.text,
-        style: const TextStyle(color: Color(0xFF1E293B), fontSize: 14.5, fontFamily: 'Inter', height: 1.5),
-      ),
+        IconButton(
+          icon: const Icon(Icons.copy, size: 14, color: Color(0xFF94A3B8)),
+          onPressed: () => Clipboard.setData(ClipboardData(text: message.text)),
+        ),
+      ],
     );
   }
 
@@ -176,7 +206,7 @@ class ChatBubble extends StatelessWidget {
           bottomRight: Radius.circular(20),
         ),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 3))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 3))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

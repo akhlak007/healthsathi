@@ -11,7 +11,6 @@ class PrivacySecurityScreen extends StatefulWidget {
 }
 
 class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
-  bool _biometricEnabled = true;
   bool _dataSharingEnabled = false;
 
   @override
@@ -42,26 +41,12 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                   ),
                   const SizedBox(height: 8),
                   ListTile(
-                    leading: const Icon(Icons.fingerprint, color: AppColors.primary),
-                    title: const Text('Biometric Authentication', style: TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Use Face ID / Touch ID to login'),
-                    trailing: Switch(
-                      value: _biometricEnabled,
-                      onChanged: (val) => setState(() => _biometricEnabled = val),
-                      activeColor: AppColors.primary,
-                    ),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  const Divider(),
-                  ListTile(
                     leading: const Icon(Icons.password, color: AppColors.primary),
                     title: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.w600)),
                     trailing: const Icon(Icons.chevron_right),
                     contentPadding: EdgeInsets.zero,
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Password reset link sent to email.')),
-                      );
+                      context.push('/change-password');
                     },
                   ),
                 ],

@@ -4,14 +4,42 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
 import '../../emergency/screens/emergency_screen.dart';
 import '../../profile/providers/active_profile_provider.dart';
 import '../../profile/widgets/profile_switcher_bottom_sheet.dart';
+import '../../medicine_reminders/domain/models/medicine_reminder_model.dart';
+import '../../medicine_reminders/providers/medicine_reminder_provider.dart';
+import '../../medicine_reminders/presentation/screens/reminder_center_screen.dart';
+import '../../medicine_reminders/services/local_notification_service.dart';
+import '../../timeline/providers/timeline_provider.dart';
+
+class TodayDose {
+  final MedicineReminderModel reminder;
+  final String timeStr;
+  final int timeIndex;
+  final DateTime dateTime;
+  final bool isTaken;
+
+  TodayDose({
+    required this.reminder,
+    required this.timeStr,
+    required this.timeIndex,
+    required this.dateTime,
+    required this.isTaken,
+  });
+}
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) return 'Good Morning';
+    if (hour >= 12 && hour < 17) return 'Good Afternoon';
+    if (hour >= 17 && hour < 21) return 'Good Evening';
+    return 'Good Night';
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -47,6 +75,7 @@ class HomeScreen extends ConsumerWidget {
             name: name,
             profileImageUrl: profileImageUrl,
             bloodGroup: bloodGroup,
+            patientId: data != null ? (data['patientId'] as String?) ?? 'Generating...' : 'Generating...',
           ),
           appBar: AppBar(
             automaticallyImplyLeading: false,
@@ -73,7 +102,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 const SizedBox(width: 12),
                 const Text(
-                  'e HealthSathi',
+                  'HealthSathi',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 22,
@@ -124,7 +153,7 @@ class HomeScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                   // 1. Header Display Typography
                   Text(
-                    'Salam, $name',
+                    '${_getGreeting()}, $name 👋',
                     style: const TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 32,
@@ -186,7 +215,8 @@ class HomeScreen extends ConsumerWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: TextField(
-                            onChanged: (val) {},
+                            readOnly: true,
+                            onTap: () => context.push('/search'),
                             style: const TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 14.5,
@@ -408,12 +438,12 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 32),
 
-                  // 5. Next Reminder Section Header
+                  // 5. Today's Medicines Section
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Next Reminder',
+                        'Today\'s Medicines',
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 19,
@@ -424,12 +454,12 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       GestureDetector(
                         onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Viewing scheduling database...')),
-                          );
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (context) => const ReminderCenterScreen(),
+                          ));
                         },
                         child: const Text(
-                          'View Schedule',
+                          'View All',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 13.5,
@@ -441,93 +471,164 @@ class HomeScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  ref.watch(medicineRemindersProvider).when(
+                    data: (reminders) {
+                      final activeReminders = reminders.where((r) => r.isActive && r.endDate.isAfter(DateTime.now().subtract(const Duration(days: 1)))).toList();
+                      
+                      final now = DateTime.now();
+                      final todayDoses = <TodayDose>[];
 
-                  // Medication Card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFFE2E8F0),
-                        width: 1.0,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFFECE5),
-                            shape: BoxShape.circle,
+                      for (final reminder in activeReminders) {
+                        final todayStart = DateTime(now.year, now.month, now.day);
+                        final reminderStart = DateTime(reminder.startDate.year, reminder.startDate.month, reminder.startDate.day);
+                        final reminderEnd = DateTime(reminder.endDate.year, reminder.endDate.month, reminder.endDate.day);
+                        
+                        if (todayStart.isBefore(reminderStart) || todayStart.isAfter(reminderEnd)) {
+                          continue;
+                        }
+
+                        for (int i = 0; i < reminder.times.length; i++) {
+                          final timeStr = reminder.times[i];
+                          final parts = timeStr.split(' ');
+                          if (parts.length < 2) continue;
+                          final timeParts = parts[0].split(':');
+                          if (timeParts.length < 2) continue;
+                          var hour = int.parse(timeParts[0]);
+                          final minute = int.parse(timeParts[1]);
+                          if (parts[1].toUpperCase() == 'PM' && hour != 12) hour += 12;
+                          if (parts[1].toUpperCase() == 'AM' && hour == 12) hour = 0;
+
+                          final doseDateTime = DateTime(now.year, now.month, now.day, hour, minute);
+                          final isTaken = ref.read(medicineTakenStatusProvider.notifier).isTaken(reminder.id, doseDateTime, timeStr);
+
+                          todayDoses.add(TodayDose(
+                            reminder: reminder,
+                            timeStr: timeStr,
+                            timeIndex: i,
+                            dateTime: doseDateTime,
+                            isTaken: isTaken,
+                          ));
+                        }
+                      }
+
+                      // Sort doses by time
+                      todayDoses.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+
+                      if (todayDoses.isEmpty) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Text('No medicines for today.', style: TextStyle(color: Colors.grey)),
                           ),
-                          child: const Icon(
-                            Icons.medication_rounded,
-                            color: Color(0xFFF95B32),
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Atorvastatin',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 15.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1E293B),
-                                ),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                '20mg • After dinner',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12.5,
-                                  color: Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            const Text(
-                              '9:00 PM',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF1E293B),
-                              ),
+                        );
+                      }
+
+                      return Column(
+                        children: todayDoses.take(3).map((dose) {
+                          final reminder = dose.reminder;
+                          final isTaken = dose.isTaken;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
                             ),
-                            const SizedBox(height: 4),
-                            Container(
-                              width: 20,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: const Color(0xFFCBD5E1),
-                                  width: 1.5,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: isTaken ? const Color(0xFFD1FAE5) : const Color(0xFFFFECE5),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    reminder.type.name == 'medicine' ? Icons.medication_rounded : Icons.calendar_month_rounded,
+                                    color: isTaken ? const Color(0xFF10B981) : const Color(0xFFF95B32),
+                                    size: 22,
+                                  ),
                                 ),
-                              ),
-                              alignment: Alignment.center,
-                              child: const Icon(
-                                Icons.check_rounded,
-                                size: 13,
-                                color: Color(0xFFCBD5E1),
-                              ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        reminder.medicineName,
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 15.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: isTaken ? Colors.grey : const Color(0xFF1E293B),
+                                          decoration: isTaken ? TextDecoration.lineThrough : null,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        reminder.dosage.isNotEmpty ? reminder.dosage : reminder.instruction,
+                                        style: const TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: Color(0xFF64748B)),
+                                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      dose.timeStr,
+                                      style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    GestureDetector(
+                                      onTap: () async {
+                                        if (!isTaken) {
+                                          final uid = FirebaseAuth.instance.currentUser?.uid;
+                                          if (uid != null) {
+                                            await ref.read(medicineTakenStatusProvider.notifier).markAsTaken(reminder.id, dose.dateTime, dose.timeStr);
+                                            await LocalNotificationService().cancelEscalations(reminder.id, dose.timeIndex, dose.dateTime);
+                                            await LocalNotificationService().logNotificationToFirestore(
+                                              title: '💊 Medicine Taken',
+                                              message: 'You have marked ${reminder.medicineName} (${reminder.dosage}) as taken.',
+                                              type: 'medication',
+                                              createdAt: DateTime.now(),
+                                              isRead: true,
+                                            );
+                                          }
+                                        } else {
+                                          await ref.read(medicineTakenStatusProvider.notifier).markAsUntaken(reminder.id, dose.dateTime, dose.timeStr);
+                                        }
+                                      },
+                                      child: Container(
+                                        width: 24, height: 24,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: isTaken ? const Color(0xFF10B981) : Colors.transparent,
+                                          border: Border.all(
+                                            color: isTaken ? const Color(0xFF10B981) : const Color(0xFFCBD5E1),
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Icon(
+                                          Icons.check_rounded,
+                                          size: 14,
+                                          color: isTaken ? Colors.white : const Color(0xFFCBD5E1),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          );
+                        }).toList(),
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (err, stack) => const Center(child: Text('Error loading reminders')),
                   ),
                   const SizedBox(height: 32),
 
@@ -561,26 +662,51 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Dynamic Timeline Cards Stacked vertically
-                  _buildTimelineItem(
-                    date: 'Nov 12, 2023',
-                    badgeText: 'REPORT',
-                    badgeBg: const Color(0xFFD1FAE5),
-                    badgeColor: const Color(0xFF065F46),
-                    title: 'Comprehensive Blood Test',
-                    summary: 'Normal cholesterol levels, slight Vitamin D deficiency.',
-                    isFirst: true,
-                    isLast: false,
-                  ),
-                  _buildTimelineItem(
-                    date: 'Oct 28, 2023',
-                    badgeText: 'VISIT',
-                    badgeBg: const Color(0xFFEFF6FF),
-                    badgeColor: const Color(0xFF1E40AF),
-                    title: 'General Checkup',
-                    summary: 'Visit with Dr. Rahman. Blood pressure: 120/80.',
-                    isFirst: false,
-                    isLast: true,
+                  // Dynamic Timeline Cards from Firestore
+                  ref.watch(medicalRecordsProvider).when(
+                    data: (records) {
+                      if (records.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                            child: Text(
+                              'No health records yet.',
+                              style: TextStyle(color: Colors.grey, fontFamily: 'Inter'),
+                            ),
+                          ),
+                        );
+                      }
+                      final recent = records.take(2).toList();
+                      return Column(
+                        children: List.generate(recent.length, (i) {
+                          final rec = recent[i];
+                          final badgeText = rec.category.isNotEmpty
+                              ? rec.category.toUpperCase()
+                              : 'RECORD';
+                          final badgeBg = i == 0
+                              ? const Color(0xFFD1FAE5)
+                              : const Color(0xFFEFF6FF);
+                          final badgeColor = i == 0
+                              ? const Color(0xFF065F46)
+                              : const Color(0xFF1E40AF);
+                          return _buildTimelineItem(
+                            date: rec.date,
+                            badgeText: badgeText,
+                            badgeBg: badgeBg,
+                            badgeColor: badgeColor,
+                            title: rec.title,
+                            summary: rec.summary,
+                            isFirst: i == 0,
+                            isLast: i == recent.length - 1,
+                          );
+                        }),
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (_, __) => const Center(
+                      child: Text('Could not load timeline.',
+                          style: TextStyle(color: Colors.grey, fontFamily: 'Inter')),
+                    ),
                   ),
                   const SizedBox(height: 24),
 
@@ -674,6 +800,7 @@ class HomeScreen extends ConsumerWidget {
     required String name,
     required String profileImageUrl,
     required String bloodGroup,
+    required String patientId,
   }) {
     return Drawer(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -706,15 +833,15 @@ class HomeScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        const Text(
-                          'Patient ID: e S-8821',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
+                        Text(
+                              'Patient ID: $patientId',
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
                         const SizedBox(height: 2),
                         Row(
                           children: [
@@ -769,19 +896,22 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   _buildDrawerItem(
+                    icon: Icons.medical_information_rounded,
+                    title: 'Medicine Reminders',
+                    onTap: () {
+                      context.pop();
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => const ReminderCenterScreen(),
+                      ));
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDrawerItem(
                     icon: Icons.settings_outlined,
                     title: 'Settings',
                     onTap: () {
                       context.pop();
                       context.push('/settings');
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  _buildDrawerItem(
-                    icon: Icons.help_outline_rounded,
-                    title: 'Help & Support',
-                    onTap: () {
-                      context.pop();
                     },
                   ),
                 ],

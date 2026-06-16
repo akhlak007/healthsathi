@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../constants/app_colors.dart';
+import 'package:health_sathi/l10n/app_localizations.dart';
 
 class MedicalCard extends StatelessWidget {
   final Widget child;
@@ -126,13 +127,15 @@ class SectionHeader extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              title,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: AppColors.onBackground,
-                letterSpacing: -0.5,
+            Expanded(
+              child: Text(
+                title,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: AppColors.onBackground,
+                  letterSpacing: -0.5,
+                ),
               ),
             ),
             if (actionLabel != null && onActionPressed != null) ...[
@@ -250,6 +253,7 @@ class AppBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double bottomPadding = MediaQuery.paddingOf(context).bottom;
+    final l10n = AppLocalizations.of(context)!;
     
     return Container(
       color: Colors.transparent,
@@ -278,7 +282,7 @@ class AppBottomNavBar extends StatelessWidget {
                   index: 0,
                   iconOutline: Icons.home_outlined,
                   iconFilled: Icons.home_rounded,
-                  label: 'Home',
+                  label: l10n.home,
                   route: '/home',
                 ),
                 _buildNavItem(
@@ -286,7 +290,7 @@ class AppBottomNavBar extends StatelessWidget {
                   index: 1,
                   iconOutline: Icons.history_edu_outlined,
                   iconFilled: Icons.history_edu_rounded,
-                  label: 'Timeline',
+                  label: l10n.timeline,
                   route: '/timeline',
                 ),
                 const Expanded(child: SizedBox()), // Space for center FAB
@@ -295,7 +299,7 @@ class AppBottomNavBar extends StatelessWidget {
                   index: 3,
                   iconOutline: Icons.search_outlined,
                   iconFilled: Icons.search_rounded,
-                  label: 'Search',
+                  label: l10n.search,
                   route: '/search',
                 ),
                 _buildNavItem(
@@ -303,7 +307,7 @@ class AppBottomNavBar extends StatelessWidget {
                   index: 4,
                   iconOutline: Icons.person_outline_rounded,
                   iconFilled: Icons.person_rounded,
-                  label: 'Profile',
+                  label: l10n.profile,
                   route: '/profile-setup',
                 ),
               ],

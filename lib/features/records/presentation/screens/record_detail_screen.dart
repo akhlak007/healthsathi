@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
 import '../../../upload/domain/entities/ocr_record.dart';
+import '../../../upload/screens/file_preview_screen.dart';
 import '../../../profile/providers/active_profile_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 final recordDetailProvider = StreamProvider.family<OcrRecord?, String>((ref, recordId) {
   final user = FirebaseAuth.instance.currentUser;
@@ -53,6 +54,26 @@ class RecordDetailScreen extends ConsumerWidget {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.share_rounded, color: AppColors.primary),
+            onPressed: () {
+              final record = recordAsync.value;
+              if (record == null) return;
+              final shareUrl = (record.imageUrl != null && record.imageUrl!.isNotEmpty)
+                  ? record.imageUrl
+                  : ((record.pdfUrl != null && record.pdfUrl!.isNotEmpty) ? record.pdfUrl : null);
+              if (shareUrl == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Unable to share report.')),
+                );
+                return;
+              }
+              final docType = _getDocumentType(record.recordType);
+              final activeProfileName = ref.read(activeProfileNameProvider).value ?? 'Self';
+              final shareText = 'HealthSathi Medical Report\n\nProfile: $activeProfileName\n\nDocument Type: $docType\n\nView Report:\n$shareUrl';
+              SharePlus.instance.share(ShareParams(text: shareText));
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.edit_rounded, color: AppColors.primary),
             onPressed: () => context.push('/record-edit/$recordId'),
           ),
@@ -69,13 +90,13 @@ class RecordDetailScreen extends ConsumerWidget {
           if (record == null) {
             return const Center(child: Text('Record not found or was deleted.'));
           }
-          return _buildDetailContent(context, record);
+          return _buildDetailContent(context, record, ref);
         },
       ),
     );
   }
 
-  Widget _buildDetailContent(BuildContext context, OcrRecord record) {
+  Widget _buildDetailContent(BuildContext context, OcrRecord record, WidgetRef ref) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -83,29 +104,46 @@ class RecordDetailScreen extends ConsumerWidget {
         children: [
           // Image / PDF preview
           if (record.imageUrl != null && record.imageUrl!.isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: CachedNetworkImage(
-                imageUrl: record.imageUrl!,
-                height: 250,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  height: 250,
-                  color: Colors.grey.shade200,
-                  child: const Center(child: CircularProgressIndicator()),
+            GestureDetector(
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => FilePreviewScreen(
+                  fileUrl: record.imageUrl!,
+                  activeProfileName: ref.read(activeProfileNameProvider).value ?? 'Self',
+                  documentType: _getDocumentType(record.recordType),
                 ),
-                errorWidget: (context, url, error) => Container(
+              )),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  record.imageUrl!,
                   height: 250,
-                  color: Colors.grey.shade200,
-                  child: const Icon(Icons.broken_image, size: 48, color: AppColors.outline),
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (_, child, progress) => progress == null
+                      ? child
+                      : Container(
+                          height: 250,
+                          color: Colors.grey.shade200,
+                          child: const Center(child: CircularProgressIndicator()),
+                        ),
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 250,
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.broken_image, size: 48, color: AppColors.outline),
+                  ),
                 ),
               ),
             ),
-          
+
           if (record.pdfUrl != null && record.pdfUrl!.isNotEmpty)
             GestureDetector(
-              onTap: () => _openExternalUrl(context, record.pdfUrl!),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => FilePreviewScreen(
+                  fileUrl: record.pdfUrl!,
+                  activeProfileName: ref.read(activeProfileNameProvider).value ?? 'Self',
+                  documentType: _getDocumentType(record.recordType),
+                ),
+              )),
               child: Container(
                 height: 120,
                 decoration: BoxDecoration(
@@ -125,7 +163,13 @@ class RecordDetailScreen extends ConsumerWidget {
             ),
 
           const SizedBox(height: 24),
-          
+          if (record.recordLabel.isNotEmpty) ...[
+            Text(
+              record.recordLabel,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -253,6 +297,17 @@ class RecordDetailScreen extends ConsumerWidget {
           context.pop();
         }
       }
+    }
+  }
+
+  String _getDocumentType(String recordType) {
+    final type = recordType.toLowerCase();
+    if (type.contains('prescription')) {
+      return 'Prescription';
+    } else if (type.contains('vaccin')) {
+      return 'Vaccine';
+    } else {
+      return 'Report';
     }
   }
 }

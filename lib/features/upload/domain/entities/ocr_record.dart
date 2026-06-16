@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class OcrRecord {
   final String id;
   final String recordType;
+  final String recordLabel;
   final String doctorName;
   final String hospitalName;
   final DateTime date;
@@ -19,6 +20,7 @@ class OcrRecord {
   OcrRecord({
     required this.id,
     required this.recordType,
+    required this.recordLabel,
     required this.doctorName,
     required this.hospitalName,
     required this.date,
@@ -39,6 +41,7 @@ class OcrRecord {
     return OcrRecord(
       id: id,
       recordType: json['recordType'] as String? ?? '',
+      recordLabel: json['recordLabel'] as String? ?? '',
       doctorName: json['doctorName'] as String? ?? '',
       hospitalName: json['hospitalName'] as String? ?? '',
       date: (json['date'] as Timestamp).toDate(),
@@ -56,6 +59,7 @@ class OcrRecord {
 
   Map<String, dynamic> toJson() => {
         'recordType': recordType,
+        'recordLabel': recordLabel,
         'doctorName': doctorName,
         'hospitalName': hospitalName,
         'date': Timestamp.fromDate(date),

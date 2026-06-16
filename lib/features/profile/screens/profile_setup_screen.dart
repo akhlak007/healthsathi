@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/clinical_widgets.dart';
@@ -29,7 +31,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   
   List<Map<String, dynamic>> _familyProfiles = [];
   Map<String, dynamic>? _selfProfile;
-  String _patientId = 'e S-8821';
+  String _patientId = 'Generating...';
 
   @override
   void initState() {
@@ -47,13 +49,31 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       final selfDoc = await ref.read(firestoreProvider).collection('users').doc(user.uid).get();
       if (selfDoc.exists && mounted) {
         final selfData = selfDoc.data()!;
+        final fetchedId = selfData['patientId'] as String?;
         setState(() {
           _selfProfile = {
             'name': selfData['name'] ?? selfData['fullName'] ?? 'Self',
             'imageUrl': selfData['profileImage'] ?? selfData['photoUrl'],
           };
-          _patientId = selfData['patientId'] ?? 'e S-8821';
+          if (fetchedId != null && fetchedId.isNotEmpty) {
+            _patientId = fetchedId;
+          } else {
+            _patientId = 'Generating...';
+          }
         });
+
+        if (fetchedId == null || fetchedId.isEmpty) {
+          try {
+            final generatedId = await ref.read(patientIdServiceProvider).ensurePatientId(user.uid);
+            if (mounted) {
+              setState(() {
+                _patientId = generatedId;
+              });
+            }
+          } catch (e) {
+            debugPrint('Error ensuring patient ID: $e');
+          }
+        }
       }
 
       final docPath = isSelf
@@ -147,45 +167,43 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        titleSpacing: 16,
-        title: Row(
-          children: [
-            const Text(
-              ' HealthSathi',
-              //
-              style: TextStyle(
-                color: Color(0xFF003D9B),
-                fontWeight: FontWeight.w900,
-                fontSize: 20,
-                letterSpacing: -0.5,
+          automaticallyImplyLeading: false,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          elevation: 0,
+          titleSpacing: 16,
+          title: Row(
+            children: [
+              Text(
+                'HealthSathi',
+                style: GoogleFonts.inter(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 20,
+                  letterSpacing: -0.5,
+                ),
               ),
-            ),
-            const Spacer(),
-            IconButton(
-              icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF003D9B)),
-              onPressed: () {},
-            ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () => showProfileSwitcher(context),
-              child: CircleAvatar(
-                radius: 14,
-                backgroundImage: displayImageUrl.startsWith('data:') 
-                    ? MemoryImage(base64Decode(displayImageUrl.split(',').last)) as ImageProvider
-                    : NetworkImage(displayImageUrl),
+              const Spacer(),
+              IconButton(
+                icon: Icon(Icons.notifications_none_rounded, color: Theme.of(context).colorScheme.primary),
+                onPressed: () {},
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => showProfileSwitcher(context),
+                child: CircleAvatar(
+                  radius: 14,
+                  backgroundImage: displayImageUrl.startsWith('data:')
+                      ? MemoryImage(base64Decode(displayImageUrl.split(',').last)) as ImageProvider
+                      : NetworkImage(displayImageUrl),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Column(
           children: [
-            // Profile Header
             Center(
               child: Column(
                 children: [
@@ -249,6 +267,25 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
+                      if (isSelf && patientId.isNotEmpty && patientId != 'Generating...') ...[
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: patientId));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Patient ID copied!'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          child: const Icon(
+                            Icons.copy_rounded,
+                            size: 14,
+                            color: Color(0xFF003D9B),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -256,112 +293,100 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             ),
             const SizedBox(height: 32),
 
-            // My eHealth Info
             _buildSectionHeader('My Health Info', actionText: 'Edit', onActionTap: () => context.push('/edit-profile').then((_) => _loadExistingProfile())),
             const SizedBox(height: 16),
             Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE5EDFF),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.water_drop_outlined, color: Color(0xFF1E3A8A), size: 28),
-                        const SizedBox(height: 16),
-                        const Text('Blood Group', style: TextStyle(fontSize: 11, color: Color(0xFF475569), fontWeight: FontWeight.w500)),
-                        const SizedBox(height: 2),
-                        Text(
-                          bloodGroup,
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF1E3A8A),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD1FAE5),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.monitor_heart_outlined, color: Color(0xFF065F46), size: 28),
-                        const SizedBox(height: 16),
-                        const Text('Vitals', style: TextStyle(fontSize: 11, color: Color(0xFF475569), fontWeight: FontWeight.w500)),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Normal',
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF065F46),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Active Alerts
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: const [
-                      Icon(Icons.warning_amber_rounded, color: Color(0xFFB45309), size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        'Active Alerts',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+                  Expanded(
+                    child: Card(
+                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.water_drop_outlined, color: Theme.of(context).colorScheme.primary, size: 28),
+                            const SizedBox(height: 12),
+                            Text('Blood Group', style: GoogleFonts.inter(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
+                            const SizedBox(height: 4),
+                            Text(
+                              bloodGroup,
+                              style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: alerts.map((alert) {
-                      // Color coding based on common keywords for visual variety like the screenshot
-                      Color bgColor = const Color(0xFFDBEAFE);
-                      Color textColor = const Color(0xFF1E40AF);
-                      if (alert.toLowerCase().contains('allergy')) {
-                        bgColor = const Color(0xFFFFEDD5);
-                        textColor = const Color(0xFF9A3412);
-                      } else if (alert.toLowerCase().contains('intolerance') || alert.toLowerCase().contains('diabetes')) {
-                        bgColor = const Color(0xFF6EE7B7);
-                        textColor = const Color(0xFF065F46);
-                      }
-                      return _buildAlertPill(alert, bgColor, textColor);
-                    }).toList(),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Card(
+                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.monitor_heart_outlined, color: Theme.of(context).colorScheme.secondary, size: 28),
+                            const SizedBox(height: 12),
+                            Text('Vitals', style: GoogleFonts.inter(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Normal',
+                              style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.secondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
+            const SizedBox(height: 20),
+
+            Card(
+                color: Theme.of(context).colorScheme.surfaceVariant,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Theme.of(context).colorScheme.error, size: 20),
+                          const SizedBox(width: 8),
+                          Text('Active Alerts', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: alerts.map((alert) {
+                          Color bgColor = Theme.of(context).colorScheme.primaryContainer;
+                          Color textColor = Theme.of(context).colorScheme.onPrimaryContainer;
+                          if (alert.toLowerCase().contains('allergy')) {
+                            bgColor = Theme.of(context).colorScheme.errorContainer;
+                            textColor = Theme.of(context).colorScheme.onErrorContainer;
+                          } else if (alert.toLowerCase().contains('intolerance') || alert.toLowerCase().contains('diabetes')) {
+                            bgColor = Theme.of(context).colorScheme.secondaryContainer;
+                            textColor = Theme.of(context).colorScheme.onSecondaryContainer;
+                          }
+                          return _buildAlertPill(alert, bgColor, textColor);
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             const SizedBox(height: 32),
 
-            // Family Profiles
             _buildSectionHeader('Family Profiles', actionText: 'View All', onActionTap: () => context.push('/family-profiles')),
             const SizedBox(height: 16),
             SingleChildScrollView(
@@ -375,7 +400,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     child: _buildAddFamilyCard(),
                   ),
                   const SizedBox(width: 12),
-                  // Self profile card
                   if (_selfProfile != null) ...[
                     InkWell(
                       onTap: () {
@@ -414,50 +438,36 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             ),
             const SizedBox(height: 32),
 
-            // Medical Documents Vault
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-              decoration: BoxDecoration(
-                color: const Color(0xFF273240),
-                borderRadius: BorderRadius.circular(24),
+            Card(
+                color: Theme.of(context).colorScheme.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Medical Documents', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onPrimary)),
+                      const SizedBox(height: 6),
+                      Text('View your prescriptions and lab reports.', style: GoogleFonts.inter(fontSize: 13, color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8))),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () => context.push('/timeline'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.secondary,
+                          foregroundColor: Theme.of(context).colorScheme.onSecondary,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                        child: Text('Explore Vault', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14)),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Medical Documents',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'View your prescriptions and lab reports.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF94A3B8),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0052CC),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
-                    child: const Text('Explore Vault', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 32),
 
-            // Family Members
             _buildSectionHeader('Family Members'),
             const SizedBox(height: 16),
             _buildSettingsTile(Icons.family_restroom, 'Family Members', onTap: () => context.push('/family-profiles')),
@@ -498,12 +508,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF1E293B),
-            letterSpacing: -0.3,
-          ),
+          style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         if (actionText != null)
           InkWell(
@@ -512,11 +517,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
               child: Text(
                 actionText,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF003D9B),
-                ),
+                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.primary),
               ),
             ),
           ),
@@ -635,34 +636,13 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   }
 
   Widget _buildSettingsTile(IconData icon, String title, {Color? iconColor, Color? textColor, required VoidCallback onTap}) {
-    return InkWell(
+    return ListTile(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: iconColor ?? const Color(0xFF003D9B), size: 22),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: textColor ?? const Color(0xFF1E293B),
-                ),
-              ),
-            ),
-            if (textColor == null)
-              const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 20),
-          ],
-        ),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      tileColor: Theme.of(context).colorScheme.surfaceVariant,
+      leading: Icon(icon, color: iconColor ?? Theme.of(context).colorScheme.primary, size: 24),
+      title: Text(title, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: textColor ?? Theme.of(context).colorScheme.onSurfaceVariant)),
+      trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFF94A3B8)),
     );
   }
 }

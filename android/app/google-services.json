@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "890847482230",
+    "firebase_url": "https://healthsathi-c7ec6-default-rtdb.firebaseio.com",
     "project_id": "healthsathi-c7ec6",
     "storage_bucket": "healthsathi-c7ec6.firebasestorage.app"
   },
@@ -12,7 +13,20 @@
           "package_name": "com.example.healthsathi"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "890847482230-oe12bt6d7ebcmsm5ftj38ne9lisvq0rr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.healthsathi",
+            "certificate_hash": "b6a9fe0f4720a8a175e0938367b6e4b332a9a958"
+          }
+        },
+        {
+          "client_id": "890847482230-e7epaqv0t5lqua6qc9nrq45kbstn1uai.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAMczFcRE790IhCTorfkZrheXxKDyliHDU"
@@ -20,7 +34,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "890847482230-e7epaqv0t5lqua6qc9nrq45kbstn1uai.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "890847482230-ld0c1nrsemeho3msvrc3bnte5d41ub52.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.healthsathi"
+              }
+            }
+          ]
         }
       }
     }

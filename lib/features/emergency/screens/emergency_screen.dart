@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
 
@@ -209,14 +210,11 @@ class EmergencyScreen extends ConsumerWidget {
                         label: 'Call Emergency Responder',
                         backgroundColor: const Color(0xFFDC2626),
                         icon: Icons.phone_forwarded_rounded,
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Triggering immediate dialer query to: $emergencyContactPhone'),
-                              backgroundColor: const Color(0xFFDC2626),
-                            ),
-                          );
-                        },
+                        onPressed: () => _makeEmergencyCall(
+                          context: context,
+                          contactName: emergencyContactName,
+                          contactPhone: emergencyContactPhone,
+                        ),
                       ),
                     ],
                   ),
@@ -265,6 +263,138 @@ class EmergencyScreen extends ConsumerWidget {
         );
       },
     );
+  }
+
+
+  // ─── Emergency Call Helper ────────────────────────────────────────────────
+  /// Validates [contactPhone], shows a confirmation dialog, then launches the
+  /// native phone dialer via url_launcher. Handles Android, iOS and Web
+  /// gracefully.
+  static Future<void> _makeEmergencyCall({
+    required BuildContext context,
+    required String contactName,
+    required String contactPhone,
+  }) async {
+    // ── 1. Guard: no number stored ──────────────────────────────────────────
+    final trimmed = contactPhone.trim();
+    final isPlaceholder = trimmed.isEmpty ||
+        trimmed == 'No phone number' ||
+        trimmed == 'No emergency contact';
+
+    if (isPlaceholder) {
+      await showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_rounded, color: Color(0xFFDC2626), size: 22),
+              SizedBox(width: 8),
+              Text('No Emergency Contact'),
+            ],
+          ),
+          content: const Text(
+            'No emergency contact found.\n'
+            'Please add an emergency contact in Profile Settings.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // ── 2. Guard: basic phone-number sanity check ───────────────────────────
+    // Must contain at least 7 digits (allows +, spaces, dashes, parens).
+    final digitCount = trimmed.replaceAll(RegExp(r'\D'), '').length;
+    if (digitCount < 7) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('The stored phone number appears to be invalid.'),
+            backgroundColor: Color(0xFFDC2626),
+          ),
+        );
+      }
+      return;
+    }
+
+    // ── 3. Confirmation dialog ──────────────────────────────────────────────
+    if (!context.mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.phone_forwarded_rounded, color: Color(0xFFDC2626), size: 22),
+            SizedBox(width: 8),
+            Text('Emergency Call'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to call\n$contactName?',
+          style: const TextStyle(fontSize: 15, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Call Now'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // ── 4. Launch tel: URI ──────────────────────────────────────────────────
+    // Build a clean URI: strip everything except digits and leading '+'.
+    final digitsOnly = trimmed.startsWith('+')
+        ? '+${trimmed.substring(1).replaceAll(RegExp(r'\D'), '')}'
+        : trimmed.replaceAll(RegExp(r'\D'), '');
+
+    final uri = Uri(scheme: 'tel', path: digitsOnly);
+
+    if (!context.mounted) return;
+
+    try {
+      final canLaunch = await canLaunchUrl(uri);
+      if (canLaunch) {
+        await launchUrl(uri);
+      } else {
+        // Web or restricted environments
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to launch phone dialer.'),
+              backgroundColor: Color(0xFFDC2626),
+            ),
+          );
+        }
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to launch phone dialer.'),
+            backgroundColor: Color(0xFFDC2626),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildMedicalInfoTile({

@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/widgets/clinical_widgets.dart';
-import '../../auth/providers/local_auth_provider.dart';
 import '../../auth/providers/firebase_auth_provider.dart';
 import '../../profile/providers/active_profile_provider.dart';
+import '../../../../core/providers/language_provider.dart';
+import 'package:health_sathi/l10n/app_localizations.dart';
+import '../../medicine_reminders/providers/medicine_reminder_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final localAuthState = ref.watch(localAuthProvider);
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final activeProfileId = ref.watch(activeProfileProvider);
     final isSelf = activeProfileId == 'self';
@@ -28,7 +29,7 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
       appBar: AppBar(
-        title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+        title: Text(AppLocalizations.of(context)!.settings, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
         backgroundColor: Colors.white,
         elevation: 0.5,
         leading: IconButton(
@@ -65,42 +66,88 @@ class SettingsScreen extends ConsumerWidget {
 
             // PREFERENCES Section
             _buildSettingsSection(
-              title: 'PREFERENCES',
+              title: AppLocalizations.of(context)!.preferences,
               children: [
-                _buildListTile(
-                  icon: Icons.language_rounded,
-                  iconColor: const Color(0xFF10B981),
-                  title: 'Language',
-                  subtitle: 'English / Bangla',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Language settings')),
-                    );
-                  },
-                  trailing: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF3F4F6),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0F47A1),
-                            borderRadius: BorderRadius.circular(20),
+                Consumer(builder: (context, ref, child) {
+                  final locale = ref.watch(languageProvider);
+                  final isEnglish = locale.languageCode == 'en';
+                  final l10n = AppLocalizations.of(context)!;
+                  
+                  return _buildListTile(
+                    icon: Icons.language_rounded,
+                    iconColor: const Color(0xFF10B981),
+                    title: l10n.language,
+                    subtitle: l10n.englishBangla,
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                        ),
+                        builder: (context) => SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  l10n.language,
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 16),
+                                ListTile(
+                                  leading: const Icon(Icons.language),
+                                  title: const Text('English'),
+                                  trailing: isEnglish ? const Icon(Icons.check, color: AppColors.primary) : null,
+                                  onTap: () {
+                                    ref.read(languageProvider.notifier).changeLanguage('en');
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                                ListTile(
+                                  leading: const Icon(Icons.language),
+                                  title: const Text('বাংলা'),
+                                  trailing: !isEnglish ? const Icon(Icons.check, color: AppColors.primary) : null,
+                                  onTap: () {
+                                    ref.read(languageProvider.notifier).changeLanguage('bn');
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
-                          child: const Text('English', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          child: const Text('Bangla', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                        ),
-                      ],
+                      );
+                    },
+                    trailing: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isEnglish ? const Color(0xFF0F47A1) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(l10n.english, style: TextStyle(color: isEnglish ? Colors.white : Colors.grey, fontSize: 12, fontWeight: isEnglish ? FontWeight.bold : FontWeight.normal)),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: !isEnglish ? const Color(0xFF0F47A1) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(l10n.bangla, style: TextStyle(color: !isEnglish ? Colors.white : Colors.grey, fontSize: 12, fontWeight: !isEnglish ? FontWeight.bold : FontWeight.normal)),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                }),
                 const Divider(height: 1, indent: 56, endIndent: 16),
                 _buildListTile(
                   icon: Icons.notifications_rounded,
@@ -108,8 +155,62 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Notification Settings',
                   subtitle: 'Manage alerts and reminders',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Notification settings')),
+                    showModalBottomSheet(
+                      context: context,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                      ),
+                      builder: (context) => Consumer(
+                        builder: (context, ref, child) {
+                          final settings = ref.watch(notificationSettingsProvider);
+                          return SafeArea(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  const Center(
+                                    child: Text(
+                                      'Notification Settings',
+                                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  SwitchListTile(
+                                    title: const Text('Notification Sound', style: TextStyle(fontWeight: FontWeight.w600)),
+                                    subtitle: const Text('Play sound on reminders'),
+                                    value: settings.soundEnabled,
+                                    activeColor: AppColors.primary,
+                                    onChanged: (val) {
+                                      ref.read(notificationSettingsProvider.notifier).toggleSound(val);
+                                    },
+                                  ),
+                                  SwitchListTile(
+                                    title: const Text('Vibration', style: TextStyle(fontWeight: FontWeight.w600)),
+                                    subtitle: const Text('Vibrate device on reminders'),
+                                    value: settings.vibrationEnabled,
+                                    activeColor: AppColors.primary,
+                                    onChanged: (val) {
+                                      ref.read(notificationSettingsProvider.notifier).toggleVibration(val);
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primary,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                    child: const Text('Close'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     );
                   },
                 ),
@@ -119,49 +220,15 @@ class SettingsScreen extends ConsumerWidget {
 
             // SECURITY Section
             _buildSettingsSection(
-              title: 'SECURITY',
+              title: AppLocalizations.of(context)!.security,
               children: [
-                _buildListTile(
-                  icon: Icons.fingerprint_rounded,
-                  iconColor: const Color(0xFF3B82F6),
-                  title: 'Biometric Lock',
-                  subtitle: 'Secure access with fingerprint or\nface',
-                  onTap: () {},
-                  trailing: Switch(
-                    value: localAuthState.isBiometricAvailable,
-                    onChanged: (bool value) {
-                      if (value) {
-                        ref.read(localAuthProvider.notifier).checkBiometrics();
-                      } else {
-                        ref.read(localAuthProvider.notifier).lockApp();
-                      }
-                    },
-                    activeColor: Colors.white,
-                    activeTrackColor: const Color(0xFF0F47A1),
-                  ),
-                ),
-                const Divider(height: 1, indent: 56, endIndent: 16),
-                _buildListTile(
-                  icon: Icons.lock_rounded,
-                  iconColor: const Color(0xFF4B5563),
-                  title: 'Change Password',
-                  subtitle: 'Update your account password',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Change password')),
-                    );
-                  },
-                ),
-                const Divider(height: 1, indent: 56, endIndent: 16),
                 _buildListTile(
                   icon: Icons.shield_rounded,
                   iconColor: const Color(0xFF10B981),
-                  title: 'Privacy Controls',
-                  subtitle: 'Manage data sharing and visibility',
+                  title: AppLocalizations.of(context)!.privacyControls,
+                  subtitle: AppLocalizations.of(context)!.privacyControlsSubtitle,
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Privacy controls')),
-                    );
+                    context.push('/privacy-security');
                   },
                 ),
               ],
@@ -170,24 +237,70 @@ class SettingsScreen extends ConsumerWidget {
 
             // SUPPORT & ACCOUNT Section
             _buildSettingsSection(
-              title: 'SUPPORT & ACCOUNT',
+              title: AppLocalizations.of(context)!.supportAndAccount,
               children: [
                 _buildListTile(
                   icon: Icons.help_rounded,
                   iconColor: const Color(0xFF6B7280),
-                  title: 'Help & Support',
-                  subtitle: 'FAQs, chat support, and user guides',
+                  title: AppLocalizations.of(context)!.helpAndSupport,
+                  subtitle: AppLocalizations.of(context)!.helpAndSupportSubtitle,
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Help & support')),
+                    showModalBottomSheet(
+                      context: context,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                      ),
+                      builder: (context) => SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                AppLocalizations.of(context)!.helpAndSupport,
+                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary),
+                              ),
+                              const SizedBox(height: 16),
+                              const Icon(Icons.support_agent_rounded, size: 64, color: AppColors.primary),
+                              const SizedBox(height: 16),
+                              Text(
+                                AppLocalizations.of(context)!.helpAndSupportSubtitle,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                              const SizedBox(height: 24),
+                              ElevatedButton(
+                                onPressed: () => context.pop(),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size(double.infinity, 50),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                child: const Text('Close'),
+                              )
+                            ],
+                          ),
+                        ),
+                      ),
                     );
+                  },
+                ),
+                const Divider(height: 1, indent: 56, endIndent: 16),
+                _buildListTile(
+                  icon: Icons.lock_rounded,
+                  iconColor: const Color(0xFF4B5563),
+                  title: AppLocalizations.of(context)!.changePassword,
+                  subtitle: 'Update your account password',
+                  onTap: () {
+                    context.push('/change-password');
                   },
                 ),
                 const Divider(height: 1, indent: 56, endIndent: 16),
                 _buildListTile(
                   icon: Icons.logout_rounded,
                   iconColor: const Color(0xFFDC2626),
-                  title: 'Logout',
+                  title: AppLocalizations.of(context)!.logout,
                   subtitle: 'Sign out of your session',
                   titleColor: const Color(0xFFDC2626),
                   onTap: () async {
@@ -264,9 +377,32 @@ class SettingsScreen extends ConsumerWidget {
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        'Patient ID: $patientId',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      Row(
+                        children: [
+                          Text(
+                            'Patient ID: $patientId',
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                          if (patientId != 'Not Set' && patientId != 'Generating...' && patientId.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            GestureDetector(
+                              onTap: () {
+                                Clipboard.setData(ClipboardData(text: patientId));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Patient ID copied!'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                              child: const Icon(
+                                Icons.copy_rounded,
+                                size: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Text(

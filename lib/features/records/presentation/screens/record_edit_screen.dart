@@ -25,6 +25,7 @@ class _RecordEditScreenState extends ConsumerState<RecordEditScreen> {
   bool _isSaving = false;
 
   late String _recordType;
+  late TextEditingController _labelController;
   late TextEditingController _doctorController;
   late TextEditingController _hospitalController;
   late TextEditingController _ocrTextController;
@@ -36,6 +37,7 @@ class _RecordEditScreenState extends ConsumerState<RecordEditScreen> {
 
   @override
   void dispose() {
+    _labelController.dispose();
     _doctorController.dispose();
     _hospitalController.dispose();
     _ocrTextController.dispose();
@@ -48,6 +50,7 @@ class _RecordEditScreenState extends ConsumerState<RecordEditScreen> {
     if (_isInitialized) return;
     
     _recordType = record.recordType.isNotEmpty ? record.recordType : 'prescription';
+    _labelController = TextEditingController(text: record.recordLabel);
     _doctorController = TextEditingController(text: record.doctorName);
     _hospitalController = TextEditingController(text: record.hospitalName);
     _ocrTextController = TextEditingController(text: record.ocrText);
@@ -73,6 +76,7 @@ class _RecordEditScreenState extends ConsumerState<RecordEditScreen> {
             
         await collectionRef.doc(widget.recordId).update({
           'recordType': _recordType,
+          'recordLabel': _labelController.text.trim(),
           'doctorName': _doctorController.text.trim(),
           'hospitalName': _hospitalController.text.trim(),
           'date': Timestamp.fromDate(_date),
@@ -155,6 +159,12 @@ class _RecordEditScreenState extends ConsumerState<RecordEditScreen> {
             ),
             const SizedBox(height: 16),
             
+            TextFormField(
+              controller: _labelController,
+              decoration: _inputDecoration('Prescription Tag / Title'),
+            ),
+            const SizedBox(height: 16),
+
             TextFormField(
               controller: _doctorController,
               decoration: _inputDecoration('Doctor Name'),

@@ -15,9 +15,12 @@ import '../features/auth/screens/splash_screen.dart';
 import '../features/auth/screens/otp_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 import '../features/notifications/screens/notifications_screen.dart';
+import '../features/medicine_reminders/presentation/screens/reminder_center_screen.dart';
 import '../features/records/presentation/screens/record_detail_screen.dart';
 import '../features/records/presentation/screens/record_edit_screen.dart';
 import '../features/chat/screens/ai_chat_screen.dart';
+import '../features/auth/screens/forgot_password_screen.dart';
+import '../features/auth/screens/change_password_screen.dart';
 
 class AppRouter {
   AppRouter._();
@@ -38,9 +41,12 @@ class AppRouter {
   static const String search = '/search';
   static const String settings = '/settings';
   static const String notifications = '/notifications';
+  static const String reminderCenter = '/reminder-center';
   static const String recordDetail = '/record';
   static const String recordEdit = '/record-edit';
   static const String aiChat = '/ai-chat';
+  static const String forgotPassword = '/forgot-password';
+  static const String changePassword = '/change-password';
 
   static final GoRouter router = GoRouter(
     initialLocation: splash,
@@ -110,6 +116,10 @@ class AppRouter {
         builder: (context, state) => const NotificationsScreen(),
       ),
       GoRoute(
+        path: reminderCenter,
+        builder: (context, state) => const ReminderCenterScreen(),
+      ),
+      GoRoute(
         path: '$recordDetail/:recordId',
         builder: (context, state) {
           final recordId = state.pathParameters['recordId'] ?? '';
@@ -126,6 +136,14 @@ class AppRouter {
       GoRoute(
         path: aiChat,
         builder: (context, state) => const AIChatScreen(),
+      ),
+      GoRoute(
+        path: forgotPassword,
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: changePassword,
+        builder: (context, state) => const ChangePasswordScreen(),
       ),
     ],
   );

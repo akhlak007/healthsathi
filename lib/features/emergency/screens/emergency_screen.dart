@@ -290,7 +290,7 @@ class EmergencyScreen extends ConsumerWidget {
             children: [
               Icon(Icons.warning_rounded, color: Color(0xFFDC2626), size: 22),
               SizedBox(width: 8),
-              Text('No Emergency Contact'),
+              Expanded(child: Text('No Emergency Contact')),
             ],
           ),
           content: const Text(
@@ -333,7 +333,7 @@ class EmergencyScreen extends ConsumerWidget {
           children: [
             Icon(Icons.phone_forwarded_rounded, color: Color(0xFFDC2626), size: 22),
             SizedBox(width: 8),
-            Text('Emergency Call'),
+            Expanded(child: Text('Emergency Call')),
           ],
         ),
         content: Text(

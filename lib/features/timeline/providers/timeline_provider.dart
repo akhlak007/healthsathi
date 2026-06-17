@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../upload/domain/entities/ocr_record.dart';
+import '../../auth/providers/firebase_auth_provider.dart';
 import '../../profile/providers/active_profile_provider.dart';
 
 // ---------------------------------------------------------------------------
@@ -79,23 +79,42 @@ class MedicalRecord {
 // Real-time Firestore stream provider – replaces hardcoded mock data
 // ---------------------------------------------------------------------------
 
-final timelineRecordsProvider = StreamProvider<List<OcrRecord>>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
+final timelineRecordsProvider = StreamProvider<List<OcrRecord>>((ref) async* {
+  final authState = ref.watch(authStateProvider);
+  final user = authState.valueOrNull;
   final activeProfileId = ref.watch(activeProfileProvider);
 
+  if (authState.isLoading) {
+    yield <OcrRecord>[];
+    return;
+  }
+
   if (user == null) {
-    return Stream.value(<OcrRecord>[]);
+    yield <OcrRecord>[];
+    return;
   }
 
   final collectionRef = activeProfileId == 'self'
       ? FirebaseFirestore.instance.collection('users').doc(user.uid).collection('records')
       : FirebaseFirestore.instance.collection('users').doc(user.uid).collection('familyProfiles').doc(activeProfileId).collection('records');
 
-  return collectionRef.orderBy('createdAt', descending: true).snapshots().map((snapshot) {
-    return snapshot.docs
-        .map((doc) => OcrRecord.fromJson(doc.data(), doc.id))
-        .toList();
-  });
+  for (var attempt = 0; attempt < 3; attempt++) {
+    try {
+      await for (final snapshot
+          in collectionRef.orderBy('createdAt', descending: true).snapshots()) {
+        yield snapshot.docs
+            .map((doc) => OcrRecord.fromJson(doc.data(), doc.id))
+            .toList();
+      }
+      return;
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied' || attempt == 2) {
+        yield <OcrRecord>[];
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+    }
+  }
 });
 
 // ---------------------------------------------------------------------------

@@ -12,7 +12,7 @@ class OnboardingNotifier extends StateNotifier<bool> {
   final SharedPreferences _prefs;
 
   OnboardingNotifier(this._prefs)
-      : super(false);
+      : super(_prefs.getBool(_kOnboardingCompletedKey) ?? false);
 
   /// Call this when the user taps "Get Started" on the last page.
   Future<void> markCompleted() async {

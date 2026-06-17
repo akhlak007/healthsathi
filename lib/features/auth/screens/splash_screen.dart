@@ -113,9 +113,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // ── PRESERVED: original business logic — timing, auth check, routing ──
     Future.delayed(const Duration(milliseconds: 2800), () { // DEBUG: SplashScreen timer fired
       if (mounted) { print('DEBUG: SplashScreen mounted check passed');
-        // Reset onboarding flag to ensure onboarding screen is shown for debugging/first-time experience
-        print('DEBUG: Reset onboarding flag');
-        ref.read(onboardingNotifierProvider.notifier).state = false;
         final onboardingCompleted = ref.read(onboardingNotifierProvider);
         print('DEBUG: onboardingCompleted=$onboardingCompleted');
         if (!onboardingCompleted) {

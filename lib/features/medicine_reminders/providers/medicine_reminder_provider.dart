@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/providers/language_provider.dart';
+import '../../auth/providers/firebase_auth_provider.dart';
 import '../../profile/providers/active_profile_provider.dart';
 import '../data/repositories/medicine_reminder_repository.dart';
 import '../domain/models/medicine_reminder_model.dart';
@@ -19,7 +20,8 @@ final activeProfileNameProvider = Provider<String>((ref) {
 
 final medicineRemindersProvider = StreamProvider<List<MedicineReminderModel>>((ref) {
   final activeProfileId = ref.watch(activeProfileProvider);
-  final uid = FirebaseAuth.instance.currentUser?.uid;
+  final authUser = ref.watch(authStateProvider).valueOrNull;
+  final uid = authUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
   
   if (uid == null) {
     return Stream.value([]);
@@ -49,6 +51,7 @@ class MedicineReminderNotifier extends StateNotifier<AsyncValue<void>> {
     state = const AsyncLoading();
     try {
       await _repository.addReminder(_uid!, _activeProfileId, _profileName, reminder);
+      _ref.invalidate(medicineRemindersProvider);
       state = const AsyncData(null);
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -60,6 +63,7 @@ class MedicineReminderNotifier extends StateNotifier<AsyncValue<void>> {
     state = const AsyncLoading();
     try {
       await _repository.updateReminder(_uid!, _activeProfileId, _profileName, reminder);
+      _ref.invalidate(medicineRemindersProvider);
       state = const AsyncData(null);
     } catch (e, st) {
       state = AsyncError(e, st);
@@ -71,6 +75,7 @@ class MedicineReminderNotifier extends StateNotifier<AsyncValue<void>> {
     state = const AsyncLoading();
     try {
       await _repository.deleteReminder(_uid!, _activeProfileId, reminder);
+      _ref.invalidate(medicineRemindersProvider);
       state = const AsyncData(null);
     } catch (e, st) {
       state = AsyncError(e, st);

@@ -39,8 +39,15 @@ class ReminderCenterScreen extends ConsumerWidget {
           }
           
           final now = DateTime.now();
-          final activeReminders = reminders.where((r) => r.isActive && r.endDate.isAfter(now)).toList();
-          final completedReminders = reminders.where((r) => !r.isActive || r.endDate.isBefore(now)).toList();
+          final today = DateTime(now.year, now.month, now.day);
+          final activeReminders = reminders.where((r) {
+            final endDate = DateTime(r.endDate.year, r.endDate.month, r.endDate.day);
+            return r.isActive && !endDate.isBefore(today);
+          }).toList();
+          final completedReminders = reminders.where((r) {
+            final endDate = DateTime(r.endDate.year, r.endDate.month, r.endDate.day);
+            return !r.isActive || endDate.isBefore(today);
+          }).toList();
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -121,7 +128,10 @@ class ReminderCenterScreen extends ConsumerWidget {
   }
 
   Widget _buildReminderCard(BuildContext context, WidgetRef ref, MedicineReminderModel reminder) {
-    final bool isCompleted = !reminder.isActive || reminder.endDate.isBefore(DateTime.now());
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final endDate = DateTime(reminder.endDate.year, reminder.endDate.month, reminder.endDate.day);
+    final bool isCompleted = !reminder.isActive || endDate.isBefore(today);
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

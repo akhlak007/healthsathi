@@ -51,7 +51,7 @@ class _FilePreviewScreenState extends ConsumerState<FilePreviewScreen> {
                 );
                 return;
               }
-              final activeProfileName = widget.activeProfileName ?? ref.read(activeProfileNameProvider).value ?? 'Self';
+              final activeProfileName = widget.activeProfileName ?? ref.watch(activeProfileNameProvider).value ?? 'Self';
               final docType = widget.documentType ?? 'Report';
               final shareText = 'HealthSathi Medical Report\n\nProfile: $activeProfileName\n\nDocument Type: $docType\n\nView Report:\n${widget.fileUrl}';
               await SharePlus.instance.share(ShareParams(text: shareText));
@@ -141,7 +141,6 @@ class PdfNetworkOrMemoryViewer extends StatefulWidget {
 class _PdfNetworkOrMemoryViewerState extends State<PdfNetworkOrMemoryViewer> {
   bool _useMemory = false;
   bool _isLoading = true;
-  bool _isFallbackDownloading = false;
   Uint8List? _bytes;
   String? _error;
 
@@ -197,7 +196,6 @@ class _PdfNetworkOrMemoryViewerState extends State<PdfNetworkOrMemoryViewer> {
 
   Future<void> _startFallbackDownload(String networkError) async {
     setState(() {
-      _isFallbackDownloading = true;
       _isLoading = false;
     });
 
@@ -209,14 +207,12 @@ class _PdfNetworkOrMemoryViewerState extends State<PdfNetworkOrMemoryViewer> {
         print('[Preview] Fallback download success');
         setState(() {
           _useMemory = true;
-          _isFallbackDownloading = false;
         });
       } else {
         final msg = 'Fallback download failed: HTTP ${response.statusCode}';
         print('[Preview] $msg');
         setState(() {
           _error = '$networkError\n$msg';
-          _isFallbackDownloading = false;
         });
         widget.onError?.call(_error!);
       }
@@ -225,7 +221,6 @@ class _PdfNetworkOrMemoryViewerState extends State<PdfNetworkOrMemoryViewer> {
       print('[Preview] $msg');
       setState(() {
         _error = '$networkError\n$msg';
-        _isFallbackDownloading = false;
       });
       widget.onError?.call(_error!);
     }
@@ -267,7 +262,6 @@ class _PdfNetworkOrMemoryViewerState extends State<PdfNetworkOrMemoryViewer> {
       _bytes = null;
       _useMemory = false;
       _isLoading = true;
-      _isFallbackDownloading = false;
     });
   }
 }

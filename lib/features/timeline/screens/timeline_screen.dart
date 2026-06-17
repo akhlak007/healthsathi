@@ -456,7 +456,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
             // Records in this group
             ...groupRecords.asMap().entries.map((entry) {
-              final i = entry.key;
+              final _ = entry.key;  // index not used; kept for asMap() pattern
               final record = entry.value;
               final color = _categoryColor(record.recordType);
 

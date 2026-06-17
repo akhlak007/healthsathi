@@ -30,6 +30,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _emergencyPhoneController = TextEditingController();
 
   @override
+  void dispose() {
+    _nameController.dispose();
+    _bioController.dispose();
+    _ageController.dispose();
+    _allergiesController.dispose();
+    _chronicController.dispose();
+    _emergencyNameController.dispose();
+    _emergencyPhoneController.dispose();
+    super.dispose();
+  }
+
+  @override
   void initState() {
     super.initState();
     _loadExistingProfile();
@@ -37,7 +49,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Future<void> _loadExistingProfile() async {
     final user = ref.read(firebaseAuthProvider).currentUser;
-    if (user != null) {
+    if (user == null) return;
+    try {
       final activeProfileId = ref.read(activeProfileProvider);
       final isSelf = activeProfileId == 'self';
 
@@ -77,6 +90,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           }
         });
       }
+    } catch (e) {
+      debugPrint('Error loading profile: $e');
     }
   }
 
@@ -91,6 +106,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (pickedFile != null) {
       final bytes = await pickedFile.readAsBytes();
       final base64String = base64Encode(bytes);
+      if (!mounted) return;
       setState(() {
         _profileImageUrl = 'data:image/jpeg;base64,$base64String';
       });

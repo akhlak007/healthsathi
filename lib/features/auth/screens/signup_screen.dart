@@ -24,6 +24,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   @override
+  void dispose() {
+    _nameController.dispose();
+    _contactController.dispose();
+    _passController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),

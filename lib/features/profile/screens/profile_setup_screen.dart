@@ -34,6 +34,18 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   String _patientId = 'Generating...';
 
   @override
+  void dispose() {
+    _nameController.dispose();
+    _bioController.dispose();
+    _ageController.dispose();
+    _allergiesController.dispose();
+    _chronicController.dispose();
+    _emergencyNameController.dispose();
+    _emergencyPhoneController.dispose();
+    super.dispose();
+  }
+
+  @override
   void initState() {
     super.initState();
     _loadExistingProfile();
@@ -41,7 +53,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
   Future<void> _loadExistingProfile() async {
     final user = ref.read(firebaseAuthProvider).currentUser;
-    if (user != null) {
+    if (user == null) return;
+    try {
       final activeProfileId = ref.read(activeProfileProvider);
       final isSelf = activeProfileId == 'self';
 
@@ -134,6 +147,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           }).toList();
         });
       }
+    } catch (e) {
+      debugPrint('Error loading existing profile: $e');
     }
   }
 
@@ -183,10 +198,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 ),
               ),
               const Spacer(),
-              IconButton(
+              /*IconButton(
                 icon: Icon(Icons.notifications_none_rounded, color: Theme.of(context).colorScheme.primary),
                 onPressed: () {},
-              ),
+              ),*/
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => showProfileSwitcher(context),
@@ -490,8 +505,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               iconColor: const Color(0xFFDC2626),
               textColor: const Color(0xFFDC2626),
               onTap: () async {
-                await ref.read(firebaseAuthProvider).signOut();
-                if (context.mounted) context.go('/login');
+                try {
+                  await ref.read(firebaseAuthProvider).signOut();
+                  if (context.mounted) context.go('/login');
+                } catch (e) {
+                  debugPrint('Logout error: $e');
+                }
               },
             ),
             const SizedBox(height: 40),

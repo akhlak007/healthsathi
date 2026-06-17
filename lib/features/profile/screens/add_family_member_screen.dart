@@ -32,6 +32,17 @@ class _AddFamilyMemberScreenState extends ConsumerState<AddFamilyMemberScreen> {
   DateTime? _selectedDate;
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _relationController.dispose();
+    _dobController.dispose();
+    _allergiesController.dispose();
+    _chronicController.dispose();
+    _emergencyController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
@@ -42,6 +53,7 @@ class _AddFamilyMemberScreenState extends ConsumerState<AddFamilyMemberScreen> {
     );
     if (pickedFile != null) {
       final bytes = await pickedFile.readAsBytes();
+      if (!mounted) return;
       setState(() {
         _profileImageBytes = bytes;
       });
@@ -56,6 +68,7 @@ class _AddFamilyMemberScreenState extends ConsumerState<AddFamilyMemberScreen> {
       lastDate: DateTime.now(),
     );
     if (picked != null && picked != _selectedDate) {
+      if (!mounted) return;
       setState(() {
         _selectedDate = picked;
         _dobController.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";

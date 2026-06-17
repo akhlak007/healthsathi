@@ -4,14 +4,26 @@ import '../providers/chat_provider.dart';
 import '../data/services/gemini_service.dart';
 import '../widgets/chat_bubble.dart';
 
-class AIChatScreen extends ConsumerWidget {
+class AIChatScreen extends ConsumerStatefulWidget {
   const AIChatScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AIChatScreen> createState() => _AIChatScreenState();
+}
+
+class _AIChatScreenState extends ConsumerState<AIChatScreen> {
+  final TextEditingController _textController = TextEditingController();
+  final OpenRouterService _openRouter = OpenRouterService();
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final messages = ref.watch(chatProvider);
-    final textController = TextEditingController();
-    final openRouter = OpenRouterService();
 
     return Scaffold(
       appBar: AppBar(
@@ -76,7 +88,7 @@ class AIChatScreen extends ConsumerWidget {
                             ),
                             Expanded(
                               child: TextField(
-                                controller: textController,
+                                controller: _textController,
                                 style: const TextStyle(color: Colors.black87),
                                 decoration: const InputDecoration(
                                   hintText: 'Ask something…',
@@ -87,23 +99,23 @@ class AIChatScreen extends ConsumerWidget {
                                 onSubmitted: (value) async {
                                   if (value.trim().isNotEmpty) {
                                     await ref.read(chatProvider.notifier).sendText(value.trim());
-                                    textController.clear();
+                                    _textController.clear();
                                   }
                                 },
                               ),
                             ),
                             InkWell(
                               onTap: () async {
-                                final text = textController.text.trim();
+                                final text = _textController.text.trim();
                                 if (text.isNotEmpty) {
                                   await ref.read(chatProvider.notifier).sendText(text);
-                                  textController.clear();
+                                  _textController.clear();
                                 }
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF00B4D8),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF00B4D8),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(Icons.send, color: Colors.white, size: 20),

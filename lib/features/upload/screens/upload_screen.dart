@@ -17,6 +17,7 @@ class UploadScreen extends ConsumerStatefulWidget {
 class _UploadScreenState extends ConsumerState<UploadScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
+  final TextEditingController _medicineController = TextEditingController();
 
   @override
   void initState() {
@@ -30,6 +31,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
   @override
   void dispose() {
     _pulseController.dispose();
+    _medicineController.dispose();
     super.dispose();
   }
 
@@ -538,7 +540,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
   }
 
   Widget _buildMedicinesSection(UploadState state, UploadNotifier notifier) {
-    final medicineController = TextEditingController();
+    // _medicineController is a State field — not recreated on rebuild
     return MedicalCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -565,16 +567,16 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
             children: [
               Expanded(
                 child: TextFormField(
-                  controller: medicineController,
+                  controller: _medicineController,
                   decoration: _inputDecoration('Add medicine...'),
                 ),
               ),
               const SizedBox(width: 8),
               IconButton(
                 onPressed: () {
-                  if (medicineController.text.trim().isNotEmpty) {
-                    notifier.addMedicine(medicineController.text.trim());
-                    medicineController.clear();
+                  if (_medicineController.text.trim().isNotEmpty) {
+                    notifier.addMedicine(_medicineController.text.trim());
+                    _medicineController.clear();
                   }
                 },
                 icon: Container(

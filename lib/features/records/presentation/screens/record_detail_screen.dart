@@ -142,6 +142,7 @@ class RecordDetailScreen extends ConsumerWidget {
                   fileUrl: record.pdfUrl!,
                   activeProfileName: ref.read(activeProfileNameProvider).value ?? 'Self',
                   documentType: _getDocumentType(record.recordType),
+                  forcePdf: true,
                 ),
               )),
               child: Container(
@@ -173,11 +174,26 @@ class RecordDetailScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              ClinicalBadge(
-                label: record.recordType.toUpperCase(),
-                backgroundColor: AppColors.primary.withOpacity(0.1),
-                textColor: AppColors.primary,
+              Flexible(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    ClinicalBadge(
+                      label: record.recordType.toUpperCase(),
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      textColor: AppColors.primary,
+                    ),
+                    if (record.verifiedByHospital)
+                      const ClinicalBadge(
+                        label: 'VERIFIED HOSPITAL',
+                        backgroundColor: Color(0xFFD1FAE5),
+                        textColor: Color(0xFF065F46),
+                      ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Text(
                 DateFormat('dd MMM yyyy').format(record.date),
                 style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.outline),

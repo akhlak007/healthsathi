@@ -17,20 +17,26 @@ class FamilyProfileModel extends FamilyProfile {
     required super.updatedAt,
   });
 
+  static DateTime _parseDate(dynamic val) {
+    if (val is Timestamp) return val.toDate();
+    if (val is String) return DateTime.tryParse(val) ?? DateTime.now();
+    return DateTime.now();
+  }
+
   factory FamilyProfileModel.fromJson(Map<String, dynamic> json) {
     return FamilyProfileModel(
-      profileId: json['profileId'] as String,
-      name: json['name'] as String,
-      relationship: json['relationship'] as String,
-      photoUrl: json['photoUrl'] as String?,
-      gender: json['gender'] as String,
-      dateOfBirth: (json['dateOfBirth'] as Timestamp).toDate(),
-      bloodGroup: json['bloodGroup'] as String,
+      profileId: json['profileId'] as String? ?? '',
+      name: json['name'] as String? ?? json['fullName'] as String? ?? '',
+      relationship: json['relationship'] as String? ?? '',
+      photoUrl: json['photoUrl'] as String? ?? json['profileImage'] as String?,
+      gender: json['gender'] as String? ?? '',
+      dateOfBirth: _parseDate(json['dateOfBirth']),
+      bloodGroup: json['bloodGroup'] as String? ?? '',
       allergies: List<String>.from(json['allergies'] ?? []),
       chronicDiseases: List<String>.from(json['chronicDiseases'] ?? []),
-      emergencyContact: json['emergencyContact'] as String,
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
-      updatedAt: (json['updatedAt'] as Timestamp).toDate(),
+      emergencyContact: json['emergencyContact'] as String? ?? json['emergencyContactPhone'] as String? ?? '',
+      createdAt: _parseDate(json['createdAt']),
+      updatedAt: _parseDate(json['updatedAt']),
     );
   }
 

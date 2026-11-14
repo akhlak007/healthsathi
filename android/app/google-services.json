@@ -23,6 +23,14 @@
           }
         },
         {
+          "client_id": "890847482230-p2meo0b10o6uujje5k4fl2jt6ag2m36g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.healthsathi",
+            "certificate_hash": "123fd15e2168a839a45e58784f8f459f12967975"
+          }
+        },
+        {
           "client_id": "890847482230-e7epaqv0t5lqua6qc9nrq45kbstn1uai.apps.googleusercontent.com",
           "client_type": 3
         }

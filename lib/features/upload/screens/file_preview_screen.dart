@@ -13,12 +13,14 @@ class FilePreviewScreen extends ConsumerStatefulWidget {
   final String fileUrl;
   final String? activeProfileName;
   final String? documentType;
+  final bool? forcePdf;
 
   const FilePreviewScreen({
     super.key,
     required this.fileUrl,
     this.activeProfileName,
     this.documentType,
+    this.forcePdf,
   });
 
   @override
@@ -32,7 +34,7 @@ class _FilePreviewScreenState extends ConsumerState<FilePreviewScreen> {
   void initState() {
     super.initState();
     final path = Uri.tryParse(widget.fileUrl)?.path.toLowerCase() ?? widget.fileUrl.toLowerCase();
-    _isPdf = path.endsWith('.pdf');
+    _isPdf = widget.forcePdf ?? (path.endsWith('.pdf') || path.contains('/raw/upload/'));
     print('[Preview] File type detected: ${_isPdf ? 'PDF' : 'Image'} (${widget.fileUrl})');
   }
 

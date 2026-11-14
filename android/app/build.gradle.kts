@@ -23,10 +23,17 @@ android {
 
     defaultConfig {
         applicationId = "com.example.healthsathi"
-        minSdk = 23
-        targetSdk = 36
+        minSdk = 24
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
+        }
     }
 
     buildTypes {

@@ -66,7 +66,7 @@ Use simple language and avoid medical jargon where possible.
         'role': 'user',
         'content': [
           {'type': 'text', 'text': prompt},
-          {'type': 'image_url', 'image_url': imageUrl}
+          {'type': 'image_url', 'image_url': {'url': imageUrl}}
         ]
       }
     ];

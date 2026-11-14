@@ -30,6 +30,13 @@ class EnvConfig {
   static String get cloudinaryFolder =>
       _require('CLOUDINARY_FOLDER');
 
+  // ─── Hospital Admin Panel (healthSathi-v2) ───────────────────────────────────
+
+  /// Optional base URL for the healthSathi-v2 NestJS hospital backend.
+  /// Left optional so offline / standalone mobile mode still starts cleanly.
+  static String get hospitalApiBaseUrl =>
+      (dotenv.env['HOSPITAL_API_BASE_URL'] ?? '').trim();
+
   // ─── Validation ──────────────────────────────────────────────────────────────
 
   /// List of every key the app requires. Add new keys here as the project grows.

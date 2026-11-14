@@ -478,7 +478,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       'bloodGroup': _selectedBlood,
                       'allergies': _allergiesController.text.trim().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
                       'chronicDiseases': _chronicController.text.trim().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
-                      'updatedAt': DateTime.now().toIso8601String(),
+                      'updatedAt': Timestamp.now(),
                     };
                     
                     if (isSelf) {

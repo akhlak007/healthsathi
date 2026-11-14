@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/patient_id_service.dart';
 
 class GoogleAuthRepository {
   final FirebaseAuth _auth;
@@ -22,6 +23,13 @@ class GoogleAuthRepository {
     }
 
     final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+    if (googleAuth.accessToken == null && googleAuth.idToken == null) {
+      throw FirebaseAuthException(
+        code: 'missing-google-auth-token',
+        message: 'Failed to retrieve Google authentication tokens.',
+      );
+    }
+
     final AuthCredential credential = GoogleAuthProvider.credential(
       accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,
@@ -50,6 +58,13 @@ class GoogleAuthRepository {
           'createdAt': DateTime.now().toIso8601String(),
           'authProvider': 'google',
         });
+      }
+
+      // Ensure user has a Patient ID (fire-and-forget safe fallback)
+      try {
+        await PatientIdService(_firestore).ensurePatientId(user.uid);
+      } catch (pidError) {
+        print('Patient ID generation deferred during Google Sign-In: $pidError');
       }
     } catch (e) {
       // Catch Firestore connection/unavailable issues so they do not crash Google Sign-In.

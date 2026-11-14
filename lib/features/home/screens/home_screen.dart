@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
-import '../../emergency/screens/emergency_screen.dart';
 import '../../profile/providers/active_profile_provider.dart';
 import '../../profile/widgets/profile_switcher_bottom_sheet.dart';
 import '../../medicine_reminders/domain/models/medicine_reminder_model.dart';
@@ -13,6 +12,7 @@ import '../../medicine_reminders/providers/medicine_reminder_provider.dart';
 import '../../medicine_reminders/presentation/screens/reminder_center_screen.dart';
 import '../../medicine_reminders/services/local_notification_service.dart';
 import '../../timeline/providers/timeline_provider.dart';
+import '../../notifications/providers/notification_provider.dart';
 
 class TodayDose {
   final MedicineReminderModel reminder;
@@ -114,14 +114,28 @@ class HomeScreen extends ConsumerWidget {
               ],
             ),
             actions: [
-              IconButton(
-                icon: const Icon(
-                  Icons.notifications_none_rounded,
-                  color: Color(0xFF334155),
-                  size: 26,
-                ),
-                onPressed: () {
-                  context.push('/notifications');
+              Consumer(
+                builder: (context, ref, child) {
+                  final unreadCount = ref.watch(unreadNotificationCountProvider);
+                  return Badge(
+                    isLabelVisible: unreadCount > 0,
+                    label: Text(
+                      unreadCount > 9 ? '9+' : '$unreadCount',
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                    backgroundColor: AppColors.error,
+                    offset: const Offset(-4, 4),
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.notifications_none_rounded,
+                        color: Color(0xFF334155),
+                        size: 26,
+                      ),
+                      onPressed: () {
+                        context.push('/notifications');
+                      },
+                    ),
+                  );
                 },
               ),
               Builder(
@@ -431,6 +445,85 @@ class HomeScreen extends ConsumerWidget {
                                 ),
                               )
                             ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 4b. Hospital QR Check-In Card
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: const Color(0xFFA7F3D0),
+                        width: 1,
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF006C4B).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(
+                            Icons.qr_code_scanner_rounded,
+                            color: Color(0xFF006C4B),
+                            size: 26,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Hospital QR Check-In',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF064E3B),
+                                ),
+                              ),
+                              SizedBox(height: 3),
+                              Text(
+                                'Scan reception QR to share your Patient ID & receive reports',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12.5,
+                                  color: Color(0xFF047857),
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        ElevatedButton(
+                          onPressed: () => context.push('/hospital-checkin'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF006C4B),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          child: const Text(
+                            'Scan QR',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12.5,
+                            ),
                           ),
                         ),
                       ],
@@ -751,10 +844,7 @@ class HomeScreen extends ConsumerWidget {
                         const SizedBox(width: 12),
                         InkWell(
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const EmergencyScreen()),
-                            );
+                            context.push('/emergency');
                           },
                           borderRadius: BorderRadius.circular(28),
                           child: Container(
@@ -903,6 +993,15 @@ class HomeScreen extends ConsumerWidget {
                       Navigator.of(context).push(MaterialPageRoute(
                         builder: (context) => const ReminderCenterScreen(),
                       ));
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDrawerItem(
+                    icon: Icons.qr_code_scanner_rounded,
+                    title: 'Hospital Check-In',
+                    onTap: () {
+                      context.pop();
+                      context.push('/hospital-checkin');
                     },
                   ),
                   const SizedBox(height: 8),

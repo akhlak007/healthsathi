@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
 import '../../medicine_reminders/providers/medicine_reminder_provider.dart';
 import '../../medicine_reminders/domain/models/medicine_reminder_model.dart';
 import '../../medicine_reminders/presentation/screens/add_reminder_screen.dart';
+import '../../auth/providers/firebase_auth_provider.dart';
 import '../models/app_notification_model.dart';
 import '../providers/notification_provider.dart';
 
@@ -79,8 +81,9 @@ class NotificationsScreen extends ConsumerWidget {
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: AppColors.onBackground),
                 onSelected: (value) {
+                  final authUser = ref.read(authStateProvider).valueOrNull;
                   if (value == 'read_all') {
-                    ref.read(appNotificationProvider.notifier).markAllAsRead();
+                    ref.read(appNotificationProvider.notifier).markAllAsRead(authUser?.uid);
                   } else if (value == 'clear_all') {
                     showDialog(
                       context: context,
@@ -97,7 +100,7 @@ class NotificationsScreen extends ConsumerWidget {
                             onPressed: () {
                               ref
                                   .read(appNotificationProvider.notifier)
-                                  .clearAll();
+                                  .clearAll(authUser?.uid);
                               Navigator.pop(ctx);
                             },
                             child: const Text('Clear',
@@ -207,16 +210,21 @@ class NotificationsScreen extends ConsumerWidget {
                 color: Colors.red.shade400, size: 24),
           ),
           onDismissed: (_) {
+            final authUser = ref.read(authStateProvider).valueOrNull;
             ref
                 .read(appNotificationProvider.notifier)
-                .deleteNotification(notify.id);
+                .deleteNotification(notify.id, authUser?.uid);
           },
           child: GestureDetector(
             onTap: () {
+              final authUser = ref.read(authStateProvider).valueOrNull;
               if (!notify.isRead) {
                 ref
                     .read(appNotificationProvider.notifier)
-                    .markAsRead(notify.id);
+                    .markAsRead(notify.id, authUser?.uid);
+              }
+              if (notify.type == NotificationType.upload) {
+                context.push('/timeline');
               }
             },
             child: Container(

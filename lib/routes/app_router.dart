@@ -18,6 +18,8 @@ import '../features/notifications/screens/notifications_screen.dart';
 import '../features/medicine_reminders/presentation/screens/reminder_center_screen.dart';
 import '../features/records/presentation/screens/record_detail_screen.dart';
 import '../features/records/presentation/screens/record_edit_screen.dart';
+import '../features/emergency/screens/emergency_screen.dart';
+import '../features/hospital_checkin/screens/qr_checkin_screen.dart';
 import '../features/chat/screens/ai_chat_screen.dart';
 import '../features/auth/screens/forgot_password_screen.dart';
 import '../features/auth/screens/change_password_screen.dart';
@@ -45,6 +47,8 @@ class AppRouter {
   static const String recordDetail = '/record';
   static const String recordEdit = '/record-edit';
   static const String aiChat = '/ai-chat';
+  static const String emergency = '/emergency';
+  static const String hospitalCheckIn = '/hospital-checkin';
   static const String forgotPassword = '/forgot-password';
   static const String changePassword = '/change-password';
 
@@ -136,6 +140,14 @@ class AppRouter {
       GoRoute(
         path: aiChat,
         builder: (context, state) => const AIChatScreen(),
+      ),
+      GoRoute(
+        path: emergency,
+        builder: (context, state) => const EmergencyScreen(),
+      ),
+      GoRoute(
+        path: hospitalCheckIn,
+        builder: (context, state) => const QrCheckInScreen(),
       ),
       GoRoute(
         path: forgotPassword,

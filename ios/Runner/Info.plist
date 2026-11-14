@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>HealthSathi requires camera access to scan medical documents and prescriptions.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>HealthSathi requires photo library access to upload medical reports and profile images.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>HealthSathi requires Face ID for biometric authentication to protect your clinical health records.</string>
 </dict>
 </plist>

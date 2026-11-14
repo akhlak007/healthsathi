@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -74,7 +75,16 @@ class EmergencyScreen extends ConsumerWidget {
             title: const Text('Emergency Medical ID', style: TextStyle(fontWeight: FontWeight.bold)),
             backgroundColor: Colors.white,
             elevation: 0,
-            automaticallyImplyLeading: false,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: AppColors.primary),
+              onPressed: () {
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                } else {
+                  context.go('/home');
+                }
+              },
+            ),
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(24),

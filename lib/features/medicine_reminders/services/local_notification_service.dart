@@ -63,8 +63,6 @@ void notificationTapBackground(NotificationResponse notificationResponse) {
             'isRead': true,
             'createdAt': DateTime.now().toIso8601String(),
           });
-          // Navigate to Reminder Center to reflect changes immediately
-          AppRouter.router.push('/reminder-center');
         }
       });
     }
@@ -168,6 +166,35 @@ class LocalNotificationService {
       ),
       onDidReceiveNotificationResponse: _onNotificationResponse,
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+    );
+  }
+
+  Future<void> showNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    if (kIsWeb) return;
+    const androidDetails = AndroidNotificationDetails(
+      'hospital_reports_channel_v1',
+      'Clinical & Hospital Notifications',
+      channelDescription: 'Notifications for medical reports and hospital updates.',
+      importance: Importance.max,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+    );
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    await _notifications.show(
+      id,
+      title,
+      body,
+      const NotificationDetails(android: androidDetails, iOS: iosDetails),
+      payload: payload,
     );
   }
 
@@ -458,6 +485,10 @@ class LocalNotificationService {
 
         });
       }
+    } else if (response.payload == '/notifications' ||
+        response.payload == '/timeline' ||
+        response.payload?.startsWith('report:') == true) {
+      AppRouter.router.push('/notifications');
     } else {
       AppRouter.router.push('/reminder-center');
     }

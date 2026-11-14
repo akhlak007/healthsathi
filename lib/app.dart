@@ -5,12 +5,16 @@ import 'package:health_sathi/l10n/app_localizations.dart';
 import 'core/theme/app_theme.dart';
 import 'routes/app_router.dart';
 import 'core/providers/language_provider.dart';
+import 'features/notifications/providers/notification_provider.dart';
 
 class HealthSathiApp extends ConsumerWidget {
   const HealthSathiApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Keep real-time Firestore notification sync active across the app lifecycle
+    ref.watch(notificationSyncProvider);
+
     final locale = ref.watch(languageProvider);
 
     return MaterialApp.router(

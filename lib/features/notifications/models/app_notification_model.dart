@@ -33,6 +33,9 @@ class AppNotificationModel {
   final NotificationType type;
   final DateTime createdAt;
   final bool isRead;
+  final String? reportId;
+  final String? pdfUrl;
+  final String? hospitalName;
 
   AppNotificationModel({
     required this.id,
@@ -41,6 +44,9 @@ class AppNotificationModel {
     required this.type,
     required this.createdAt,
     this.isRead = false,
+    this.reportId,
+    this.pdfUrl,
+    this.hospitalName,
   });
 
   AppNotificationModel copyWith({
@@ -50,6 +56,9 @@ class AppNotificationModel {
     NotificationType? type,
     DateTime? createdAt,
     bool? isRead,
+    String? reportId,
+    String? pdfUrl,
+    String? hospitalName,
   }) {
     return AppNotificationModel(
       id: id ?? this.id,
@@ -58,6 +67,9 @@ class AppNotificationModel {
       type: type ?? this.type,
       createdAt: createdAt ?? this.createdAt,
       isRead: isRead ?? this.isRead,
+      reportId: reportId ?? this.reportId,
+      pdfUrl: pdfUrl ?? this.pdfUrl,
+      hospitalName: hospitalName ?? this.hospitalName,
     );
   }
 
@@ -66,22 +78,40 @@ class AppNotificationModel {
       'id': id,
       'title': title,
       'content': content,
+      'message': content,
       'type': type.name,
       'createdAt': createdAt.toIso8601String(),
       'isRead': isRead,
+      if (reportId != null) 'reportId': reportId,
+      if (pdfUrl != null) 'pdfUrl': pdfUrl,
+      if (hospitalName != null) 'hospitalName': hospitalName,
     };
   }
 
-  factory AppNotificationModel.fromMap(Map<String, dynamic> map) {
+  factory AppNotificationModel.fromMap(Map<String, dynamic> map, [String? docId]) {
+    final rawDate = map['createdAt'];
+    DateTime date;
+    if (rawDate is DateTime) {
+      date = rawDate;
+    } else if (rawDate is String) {
+      date = DateTime.tryParse(rawDate) ?? DateTime.now();
+    } else if (rawDate != null &&
+        rawDate.runtimeType.toString().contains('Timestamp')) {
+      date = (rawDate as dynamic).toDate();
+    } else {
+      date = DateTime.now();
+    }
+
     return AppNotificationModel(
-      id: map['id'] ?? '',
-      title: map['title'] ?? '',
-      content: map['content'] ?? '',
-      type: NotificationType.fromString(map['type'] ?? 'general'),
-      createdAt: map['createdAt'] != null
-          ? DateTime.parse(map['createdAt'])
-          : DateTime.now(),
+      id: docId ?? (map['id'] ?? '').toString(),
+      title: (map['title'] ?? '').toString(),
+      content: (map['content'] ?? map['message'] ?? '').toString(),
+      type: NotificationType.fromString((map['type'] ?? 'general').toString()),
+      createdAt: date,
       isRead: map['isRead'] ?? false,
+      reportId: map['reportId']?.toString(),
+      pdfUrl: map['pdfUrl']?.toString(),
+      hospitalName: map['hospitalName']?.toString(),
     );
   }
 

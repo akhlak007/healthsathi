@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/firebase_auth_provider.dart';
@@ -148,191 +149,216 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
-    return Scaffold(
-      backgroundColor: _kBg,
-      body: AnimatedBuilder(
-        animation: Listenable.merge(
-            [_controller, _dnaController, _particleController, _pulseController]),
-        builder: (context, _) {
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              // ── 1. Background gradient ───────────────────────────────────
-              Opacity(
-                opacity: _bgFade.value,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFFEEF4FF), _kBg],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: _kBg,
+        body: AnimatedBuilder(
+          animation: Listenable.merge(
+              [_controller, _dnaController, _particleController, _pulseController]),
+          builder: (context, _) {
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                // ── 1. Background gradient ───────────────────────────────────
+                Opacity(
+                  opacity: _bgFade.value,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFFEEF4FF), _kBg],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                     ),
                   ),
                 ),
-              ),
 
-              // ── 2. DNA network (CustomPainter) ───────────────────────────
-              Opacity(
-                opacity: _dnaFade.value,
-                child: CustomPaint(
-                  size: Size(size.width, size.height),
-                  painter: _DnaNetworkPainter(
-                    progress: _dnaController.value,
-                    particleProgress: _particleController.value,
+                // ── 2. DNA network (CustomPainter) ───────────────────────────
+                Opacity(
+                  opacity: _dnaFade.value,
+                  child: CustomPaint(
+                    size: Size(size.width, size.height),
+                    painter: _DnaNetworkPainter(
+                      progress: _dnaController.value,
+                      particleProgress: _particleController.value,
+                    ),
                   ),
                 ),
-              ),
 
-              // ── 3. Floating healthcare icons ─────────────────────────────
-              Opacity(
-                opacity: (_dnaFade.value * 0.55).clamp(0.0, 1.0),
-                child: _FloatingHealthIcons(
-                  progress: _particleController.value,
-                  screenSize: size,
+                // ── 3. Floating healthcare icons ─────────────────────────────
+                Opacity(
+                  opacity: (_dnaFade.value * 0.55).clamp(0.0, 1.0),
+                  child: _FloatingHealthIcons(
+                    progress: _particleController.value,
+                    screenSize: size,
+                  ),
                 ),
-              ),
 
-              // ── 4. Centre content ────────────────────────────────────────
-              SafeArea(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Spacer(flex: 2),
+                // ── 4. Centre content ────────────────────────────────────────
+                SafeArea(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Spacer(flex: 2),
 
-                    // Logo
-                    Opacity(
-                      opacity: _logoFade.value,
-                      child: Transform.scale(
-                        scale: _logoScale.value,
-                        child: _LogoWidget(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // App name
-                    Opacity(
-                      opacity: _titleFade.value,
-                      child: const Text(
-                        'HealthSathi',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 38,
-                          fontWeight: FontWeight.w900,
-                          color: _kPrimary,
-                          letterSpacing: -1.2,
+                      // Logo
+                      Opacity(
+                        opacity: _logoFade.value,
+                        child: Transform.scale(
+                          scale: _logoScale.value,
+                          child: _LogoWidget(),
                         ),
                       ),
-                    ),
 
-                    const SizedBox(height: 10),
+                      const SizedBox(height: 28),
 
-                    // Subtitle
-                    Opacity(
-                      opacity: _subtitleFade.value,
-                      child: const Text(
-                        "Your Family's Digital Health Companion",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF64748B),
-                          letterSpacing: 0.2,
+                      // App name
+                      Opacity(
+                        opacity: _titleFade.value,
+                        child: const Text(
+                          'HealthSathi',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 38,
+                            fontWeight: FontWeight.w900,
+                            color: _kPrimary,
+                            letterSpacing: -1.2,
+                          ),
                         ),
                       ),
-                    ),
 
-                    const Spacer(flex: 2),
+                      const SizedBox(height: 10),
 
-                    // Loading section
-                    Opacity(
-                      opacity: _loadingFade.value,
-                      child: Column(
-                        children: [
-                          Transform.scale(
-                            scale: _pulse.value,
-                            child: SizedBox(
-                              width: 36,
-                              height: 36,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                valueColor:
-                                    const AlwaysStoppedAnimation<Color>(_kAccent),
-                                backgroundColor:
-                                    _kAccent.withValues(alpha: 0.12),
+                      // Subtitle
+                      Opacity(
+                        opacity: _subtitleFade.value,
+                        child: const Text(
+                          "Your Family's Digital Health Companion",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF64748B),
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+
+                      const Spacer(flex: 2),
+
+                      // Loading section with brand logo loader
+                      Opacity(
+                        opacity: _loadingFade.value,
+                        child: Column(
+                          children: [
+                            Transform.scale(
+                              scale: _pulse.value,
+                              child: SizedBox(
+                                width: 48,
+                                height: 48,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    SizedBox(
+                                      width: 48,
+                                      height: 48,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.8,
+                                        valueColor:
+                                            const AlwaysStoppedAnimation<Color>(_kPrimary),
+                                        backgroundColor:
+                                            _kPrimary.withOpacity(0.12),
+                                      ),
+                                    ),
+                                    Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      padding: const EdgeInsets.all(4),
+                                      child: ClipOval(
+                                        child: Image.asset(
+                                          'assets/icons/app_logo.png',
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 14),
-                          const Text(
-                            'PREPARING YOUR DASHBOARD',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF94A3B8),
-                              letterSpacing: 2.0,
+                            const SizedBox(height: 14),
+                            const Text(
+                              'PREPARING YOUR DASHBOARD',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF94A3B8),
+                                letterSpacing: 2.0,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 40),
-                  ],
+                      const SizedBox(height: 40),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Logo Widget — shield + cross mark
+// Logo Widget — official brand logo
 // ─────────────────────────────────────────────────────────────────────────────
 class _LogoWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 108,
-      height: 108,
+      width: 112,
+      height: 112,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: _kPrimary.withValues(alpha: 0.18),
+            color: _kPrimary.withOpacity(0.18),
             blurRadius: 36,
             spreadRadius: 4,
             offset: const Offset(0, 8),
           ),
           BoxShadow(
-            color: _kSecondary.withValues(alpha: 0.10),
-            blurRadius: 60,
-            spreadRadius: 8,
+            color: _kSecondary.withOpacity(0.10),
+            blurRadius: 50,
+            spreadRadius: 6,
           ),
         ],
       ),
+      padding: const EdgeInsets.all(12),
       child: Center(
-        child: Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            gradient: const LinearGradient(
-              colors: [_kPrimary, _kSecondary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: const Icon(
-            Icons.health_and_safety_rounded,
-            size: 40,
-            color: Colors.white,
+        child: ClipOval(
+          child: Image.asset(
+            'assets/icons/app_logo.png',
+            width: 86,
+            height: 86,
+            fit: BoxFit.contain,
           ),
         ),
       ),

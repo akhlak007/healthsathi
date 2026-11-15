@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
 import '../../../../core/widgets/medical_illustrations.dart';
+import '../../../../core/widgets/app_logo_loader.dart';
 import '../../profile/providers/active_profile_provider.dart';
 import '../../profile/widgets/profile_switcher_bottom_sheet.dart';
 import '../../medicine_reminders/domain/models/medicine_reminder_model.dart';
@@ -52,7 +53,7 @@ class HomeScreen extends ConsumerWidget {
     final activeProfileId = ref.watch(activeProfileProvider);
 
     if (uid == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: AppLogoLoader(size: 64)));
     }
 
     return StreamBuilder<DocumentSnapshot>(
@@ -1032,7 +1033,7 @@ class HomeScreen extends ConsumerWidget {
                       );
                     },
                     loading: () =>
-                        const Center(child: CircularProgressIndicator()),
+                        const Center(child: AppLogoLoader(size: 48)),
                     error: (err, stack) =>
                         const Center(child: Text('Error loading reminders')),
                   ),

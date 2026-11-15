@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
 import '../../../../core/widgets/medical_illustrations.dart';
+import '../../../../core/widgets/app_logo_loader.dart';
 import '../../profile/providers/active_profile_provider.dart';
 import '../../profile/widgets/profile_switcher_bottom_sheet.dart';
 import '../../medicine_reminders/presentation/screens/reminder_center_screen.dart';
@@ -217,7 +218,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final recordsAsync = ref.watch(timelineRecordsProvider);
 
     if (uid == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: AppLogoLoader(size: 64)));
     }
 
     return StreamBuilder<DocumentSnapshot>(
@@ -512,7 +513,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                       },
                       loading: () => const Padding(
                         padding: EdgeInsets.symmetric(vertical: 40),
-                        child: Center(child: CircularProgressIndicator()),
+                        child: Center(child: AppLogoLoader(size: 52)),
                       ),
                       error: (err, _) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 40),

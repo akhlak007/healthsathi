@@ -64,20 +64,32 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(6),
+                              width: 28,
+                              height: 28,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF006C4B).withOpacity(0.08),
-                                borderRadius: BorderRadius.circular(8),
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF003D9B).withOpacity(0.12),
+                                    blurRadius: 6,
+                                  ),
+                                ],
                               ),
-                              child: const Icon(Icons.health_and_safety,
-                                  size: 18, color: Color(0xFF006C4B)),
+                              padding: const EdgeInsets.all(2),
+                              child: ClipOval(
+                                child: Image.asset(
+                                  'assets/icons/app_logo.png',
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
                             ),
                             const SizedBox(width: 8),
                             const Text(
                               'HealthSathi',
                               style: TextStyle(
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFF006C4B),
+                                color: Color(0xFF003D9B),
                                 fontSize: 16,
                                 letterSpacing: -0.5,
                               ),

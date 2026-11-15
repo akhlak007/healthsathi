@@ -28,7 +28,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final _chronicController = TextEditingController();
   final _emergencyNameController = TextEditingController();
   final _emergencyPhoneController = TextEditingController();
-  
+
   List<Map<String, dynamic>> _familyProfiles = [];
   Map<String, dynamic>? _selfProfile;
   String _patientId = 'Generating...';
@@ -58,7 +58,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       final activeProfileId = ref.read(activeProfileProvider);
       final isSelf = activeProfileId == 'self';
 
-      // Always load the main user's basic profile details (for "Self" card and patient ID)
       final selfDoc = await ref.read(firestoreProvider).collection('users').doc(user.uid).get();
       if (selfDoc.exists && mounted) {
         final selfData = selfDoc.data()!;
@@ -94,32 +93,32 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           : ref.read(firestoreProvider).collection('users').doc(user.uid).collection('familyProfiles').doc(activeProfileId);
 
       final doc = await docPath.get();
-      
+
       if (doc.exists && mounted) {
         final data = doc.data()!;
         setState(() {
           _nameController.text = data['name'] ?? data['fullName'] ?? '';
           _bioController.text = data['bio'] ?? (isSelf ? '' : data['relationship'] ?? '');
           _profileImageUrl = data['profileImage'] ?? data['photoUrl'];
-          
+
           if (data['age'] != null) _ageController.text = data['age'];
           if (data['gender'] != null) _selectedGender = data['gender'];
           if (data['bloodGroup'] != null) _selectedBlood = data['bloodGroup'];
-          
+
           if (data['allergies'] != null) {
             _allergiesController.text = data['allergies'] is List ? (data['allergies'] as List).join(', ') : data['allergies'];
           } else {
-             _allergiesController.clear();
+            _allergiesController.clear();
           }
           if (data['chronicDiseases'] != null) {
             _chronicController.text = data['chronicDiseases'] is List ? (data['chronicDiseases'] as List).join(', ') : data['chronicDiseases'];
           } else {
             _chronicController.clear();
           }
-          
+
           if (data['emergencyContactName'] != null) _emergencyNameController.text = data['emergencyContactName'];
           if (data['emergencyContactPhone'] != null) _emergencyPhoneController.text = data['emergencyContactPhone'];
-          
+
           if (!isSelf && data['emergencyContact'] != null) {
             _emergencyPhoneController.text = data['emergencyContact'];
             _emergencyNameController.clear();
@@ -127,23 +126,22 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         });
       }
 
-      // Fetch family profiles for the horizontal list
       final familySnapshot = await ref.read(firestoreProvider)
           .collection('users')
           .doc(user.uid)
           .collection('familyProfiles')
           .get();
-          
+
       if (mounted) {
         setState(() {
           _familyProfiles = familySnapshot.docs.map((d) {
-             final fData = d.data();
-             return {
-                'id': d.id,
-                'name': fData['name'] ?? fData['fullName'],
-                'relation': fData['relationship'],
-                'imageUrl': fData['photoUrl'] ?? fData['profileImage'],
-             };
+            final fData = d.data();
+            return {
+              'id': d.id,
+              'name': fData['name'] ?? fData['fullName'],
+              'relation': fData['relationship'],
+              'imageUrl': fData['photoUrl'] ?? fData['profileImage'],
+            };
           }).toList();
         });
       }
@@ -169,90 +167,152 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     final rawImageUrl = _profileImageUrl;
     final displayImageUrl = rawImageUrl == 'default' || rawImageUrl == null || rawImageUrl.isEmpty
         ? 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=003D9B&color=fff'
-        : rawImageUrl; 
+        : rawImageUrl;
+
+    final userInitials = name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase();
 
     List<String> alerts = [];
     if (_allergiesController.text.isNotEmpty || _chronicController.text.isNotEmpty) {
       if (_allergiesController.text.isNotEmpty) alerts.addAll(_allergiesController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty));
       if (_chronicController.text.isNotEmpty) alerts.addAll(_chronicController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty));
     } else {
-      alerts = ['Penicillin Allergy', 'Chronic Hypertension', 'Lactose Intolerance'];
+      alerts = ['Penicillin Allergy', 'Hypertension', 'Lactose Intolerance'];
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-          automaticallyImplyLeading: false,
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          elevation: 0,
-          titleSpacing: 16,
-          title: Row(
-            children: [
-              Text(
-                'HealthSathi',
-                style: GoogleFonts.inter(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 20,
-                  letterSpacing: -0.5,
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        titleSpacing: 16,
+        toolbarHeight: 68,
+        title: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/icons/app_logo.png',
+                width: 32,
+                height: 32,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Text(
+                  'HealthSathi',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF003D9B),
+                    letterSpacing: -0.6,
+                  ),
+                ),
+                SizedBox(height: 1),
+                Text(
+                  'Your Personal Health Hub',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: () => showProfileSwitcher(context),
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF003D9B),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFFE2E8F0),
+                    width: 1.5,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  userInitials.isNotEmpty ? userInitials : 'AJ',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: 'Inter',
+                  ),
                 ),
               ),
-              const Spacer(),
-              /*IconButton(
-                icon: Icon(Icons.notifications_none_rounded, color: Theme.of(context).colorScheme.primary),
-                onPressed: () {},
-              ),*/
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => showProfileSwitcher(context),
-                child: CircleAvatar(
-                  radius: 14,
-                  backgroundImage: displayImageUrl.startsWith('data:')
-                      ? MemoryImage(base64Decode(displayImageUrl.split(',').last)) as ImageProvider
-                      : NetworkImage(displayImageUrl),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         child: Column(
           children: [
-            Center(
+            // User Hero Profile Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x060F172A),
+                    blurRadius: 12,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
               child: Column(
                 children: [
                   Stack(
                     alignment: Alignment.bottomRight,
                     children: [
-                        GestureDetector(
-                          onTap: () => showProfileSwitcher(context),
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: const Color(0xFF003D9B), width: 3),
-                            ),
-                            child: CircleAvatar(
-                              radius: 46,
-                              backgroundColor: const Color(0xFFD6E4FF),
-                              backgroundImage: displayImageUrl.startsWith('data:') 
-                                  ? MemoryImage(base64Decode(displayImageUrl.split(',').last)) as ImageProvider
-                                  : NetworkImage(displayImageUrl),
-                            ),
+                      GestureDetector(
+                        onTap: () => showProfileSwitcher(context),
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFF003D9B), width: 2.5),
+                          ),
+                          child: CircleAvatar(
+                            radius: 44,
+                            backgroundColor: const Color(0xFFE5EDFF),
+                            backgroundImage: displayImageUrl.startsWith('data:')
+                                ? MemoryImage(base64Decode(displayImageUrl.split(',').last)) as ImageProvider
+                                : NetworkImage(displayImageUrl),
                           ),
                         ),
+                      ),
                       GestureDetector(
                         onTap: () => context.push('/edit-profile').then((_) => _loadExistingProfile()),
                         child: Container(
-                          margin: const EdgeInsets.only(right: 2, bottom: 2),
-                          padding: const EdgeInsets.all(6),
+                          padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
                             color: const Color(0xFF003D9B),
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                            border: Border.all(color: Colors.white, width: 2.5),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x20003D9B),
+                                blurRadius: 6,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
                           ),
-                          child: const Icon(Icons.edit_rounded, color: Colors.white, size: 14),
+                          child: const Icon(Icons.edit_rounded, color: Colors.white, size: 13),
                         ),
                       ),
                     ],
@@ -261,156 +321,233 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   Text(
                     name,
                     style: const TextStyle(
-                      fontSize: 22,
+                      fontSize: 21,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E293B),
+                      color: Color(0xFF0F172A),
+                      letterSpacing: -0.3,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        isSelf ? 'Patient ID: ' : 'Relationship: ',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                      ),
-                      Text(
-                        isSelf ? patientId : _bioController.text,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF003D9B),
-                          fontWeight: FontWeight.w800,
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFDBEAFE), width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isSelf ? 'Patient ID: ' : 'Relation: ',
+                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
                         ),
-                      ),
-                      if (isSelf && patientId.isNotEmpty && patientId != 'Generating...') ...[
-                        const SizedBox(width: 6),
-                        GestureDetector(
-                          onTap: () {
-                            Clipboard.setData(ClipboardData(text: patientId));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Patient ID copied!'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          },
-                          child: const Icon(
-                            Icons.copy_rounded,
-                            size: 14,
+                        Text(
+                          isSelf ? patientId : _bioController.text,
+                          style: const TextStyle(
+                            fontSize: 11.5,
                             color: Color(0xFF003D9B),
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
+                        if (isSelf && patientId.isNotEmpty && patientId != 'Generating...') ...[
+                          const SizedBox(width: 6),
+                          GestureDetector(
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: patientId));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Patient ID copied!'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            child: const Icon(
+                              Icons.copy_rounded,
+                              size: 13,
+                              color: Color(0xFF003D9B),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
 
+            // My Health Info
             _buildSectionHeader('My Health Info', actionText: 'Edit', onActionTap: () => context.push('/edit-profile').then((_) => _loadExistingProfile())),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Row(
-                children: [
-                  Expanded(
-                    child: Card(
-                      color: Theme.of(context).colorScheme.surfaceVariant,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.water_drop_outlined, color: Theme.of(context).colorScheme.primary, size: 28),
-                            const SizedBox(height: 12),
-                            Text('Blood Group', style: GoogleFonts.inter(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
-                            const SizedBox(height: 4),
-                            Text(
-                              bloodGroup,
-                              style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary),
-                            ),
-                          ],
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x060F172A),
+                          blurRadius: 10,
+                          offset: Offset(0, 2),
                         ),
-                      ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.water_drop_rounded, color: Color(0xFF003D9B), size: 20),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Blood Group',
+                          style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          bloodGroup,
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF003D9B)),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Card(
-                      color: Theme.of(context).colorScheme.surfaceVariant,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.monitor_heart_outlined, color: Theme.of(context).colorScheme.secondary, size: 28),
-                            const SizedBox(height: 12),
-                            Text('Vitals', style: GoogleFonts.inter(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Normal',
-                              style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.secondary),
-                            ),
-                          ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x060F172A),
+                          blurRadius: 10,
+                          offset: Offset(0, 2),
                         ),
-                      ),
+                      ],
                     ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFECFDF5),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.monitor_heart_rounded, color: Color(0xFF059669), size: 20),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Vitals',
+                          style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Normal',
+                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF059669)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Active Alerts
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x060F172A),
+                    blurRadius: 10,
+                    offset: Offset(0, 2),
                   ),
                 ],
               ),
-            const SizedBox(height: 20),
-
-            Card(
-                color: Theme.of(context).colorScheme.surfaceVariant,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.warning_amber_rounded, color: Theme.of(context).colorScheme.error, size: 20),
-                          const SizedBox(width: 8),
-                          Text('Active Alerts', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: alerts.map((alert) {
-                          Color bgColor = Theme.of(context).colorScheme.primaryContainer;
-                          Color textColor = Theme.of(context).colorScheme.onPrimaryContainer;
-                          if (alert.toLowerCase().contains('allergy')) {
-                            bgColor = Theme.of(context).colorScheme.errorContainer;
-                            textColor = Theme.of(context).colorScheme.onErrorContainer;
-                          } else if (alert.toLowerCase().contains('intolerance') || alert.toLowerCase().contains('diabetes')) {
-                            bgColor = Theme.of(context).colorScheme.secondaryContainer;
-                            textColor = Theme.of(context).colorScheme.onSecondaryContainer;
-                          }
-                          return _buildAlertPill(alert, bgColor, textColor);
-                        }).toList(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: const [
+                      Icon(Icons.warning_amber_rounded, color: Color(0xFFE11D48), size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'Active Alerts',
+                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                       ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: alerts.map((alert) {
+                      Color bgColor = const Color(0xFFEFF6FF);
+                      Color textColor = const Color(0xFF1D4ED8);
+                      Color borderColor = const Color(0xFFDBEAFE);
+                      if (alert.toLowerCase().contains('allergy')) {
+                        bgColor = const Color(0xFFFEF2F2);
+                        textColor = const Color(0xFFDC2626);
+                        borderColor = const Color(0xFFFECDD3);
+                      } else if (alert.toLowerCase().contains('intolerance') || alert.toLowerCase().contains('diabetes')) {
+                        bgColor = const Color(0xFFFFFBEB);
+                        textColor = const Color(0xFFB45309);
+                        borderColor = const Color(0xFFFDE68A);
+                      }
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: borderColor, width: 1),
+                        ),
+                        child: Text(
+                          alert,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: textColor,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
               ),
-            const SizedBox(height: 32),
+            ),
+            const SizedBox(height: 24),
 
+            // Family Profiles
             _buildSectionHeader('Family Profiles', actionText: 'View All', onActionTap: () => context.push('/family-profiles')),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               clipBehavior: Clip.none,
               child: Row(
                 children: [
                   InkWell(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(20),
                     onTap: () => context.push('/add-family-member').then((_) => _loadExistingProfile()),
                     child: _buildAddFamilyCard(),
                   ),
@@ -420,7 +557,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                       onTap: () {
                         ref.read(activeProfileProvider.notifier).setActiveProfile('self');
                       },
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(20),
                       child: _buildFamilyCard(
                         _selfProfile!['name'] ?? 'Self',
                         'Me',
@@ -438,7 +575,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                         onTap: () {
                           ref.read(activeProfileProvider.notifier).setActiveProfile(member['id']);
                         },
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(20),
                         child: _buildFamilyCard(
                           member['name'] ?? '',
                           member['relation'] ?? '',
@@ -451,73 +588,280 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 26),
 
-            Card(
-                color: Theme.of(context).colorScheme.primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Medical Documents', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onPrimary)),
-                      const SizedBox(height: 6),
-                      Text('View your prescriptions and lab reports.', style: GoogleFonts.inter(fontSize: 13, color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.8))),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () => context.push('/timeline'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.secondary,
-                          foregroundColor: Theme.of(context).colorScheme.onSecondary,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            // Medical Documents Vault Banner
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF003D9B),
+                    Color(0xFF1D4ED8),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x24003D9B),
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Medical Documents Vault',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: -0.3,
+                          ),
                         ),
-                        child: Text('Explore Vault', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14)),
-                      ),
-                    ],
+                        const SizedBox(height: 6),
+                        Text(
+                          'View all your prescriptions, lab reports, and records in one secure vault.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withOpacity(0.88),
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => context.push('/timeline'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF003D9B),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Text(
+                                'Explore Vault',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              SizedBox(width: 6),
+                              Icon(Icons.arrow_forward_rounded, size: 16),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.18),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.folder_shared_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 26),
+
+            // Family Members Section
+            _buildSectionHeader('Family Members'),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x060F172A),
+                    blurRadius: 10,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ListTile(
+                onTap: () => context.push('/family-profiles'),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                leading: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.people_alt_rounded, color: Color(0xFF003D9B), size: 22),
+                ),
+                title: const Text(
+                  'Family Members',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: Color(0xFF0F172A),
                   ),
                 ),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 22),
               ),
-            const SizedBox(height: 32),
-
-            _buildSectionHeader('Family Members'),
-            const SizedBox(height: 16),
-            _buildSettingsTile(Icons.family_restroom, 'Family Members', onTap: () => context.push('/family-profiles')),
-            const SizedBox(height: 32),
-
-            // Account Settings
-            _buildSectionHeader('Account Settings'),
-            const SizedBox(height: 16),
-            _buildSettingsTile(Icons.assignment_ind_outlined, 'Personal Information', onTap: () => context.push('/edit-profile').then((_) => _loadExistingProfile())),
-            const SizedBox(height: 8),
-            _buildSettingsTile(Icons.security_rounded, 'Privacy & Security', onTap: () => context.push('/privacy-security')),
-            const SizedBox(height: 8),
-            _buildSettingsTile(Icons.settings_outlined, 'Preferences', onTap: () {
-               context.push('/settings');
-            }),
-            const SizedBox(height: 8),
-            _buildSettingsTile(
-              Icons.logout_rounded,
-              'Log Out',
-              iconColor: const Color(0xFFDC2626),
-              textColor: const Color(0xFFDC2626),
-              onTap: () async {
-                try {
-                  await ref.read(firebaseAuthProvider).signOut();
-                  if (context.mounted) context.go('/login');
-                } catch (e) {
-                  debugPrint('Logout error: $e');
-                }
-              },
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 26),
+
+            // Account Settings Section
+            _buildSectionHeader('Account Settings'),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x060F172A),
+                    blurRadius: 10,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  _buildGroupedSettingTile(
+                    icon: Icons.assignment_ind_outlined,
+                    title: 'Personal Information',
+                    onTap: () => context.push('/edit-profile').then((_) => _loadExistingProfile()),
+                  ),
+                  const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9), indent: 70),
+                  _buildGroupedSettingTile(
+                    icon: Icons.security_rounded,
+                    title: 'Privacy & Security',
+                    onTap: () => context.push('/privacy-security'),
+                  ),
+                  const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9), indent: 70),
+                  _buildGroupedSettingTile(
+                    icon: Icons.settings_outlined,
+                    title: 'Preferences',
+                    onTap: () => context.push('/settings'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Log Out Button
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF1F2),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFFECDD3), width: 1.2),
+              ),
+              child: ListTile(
+                onTap: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      title: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.w800)),
+                      content: const Text('Are you sure you want to log out of your account?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFDC2626),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text('Log Out'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    try {
+                      await ref.read(firebaseAuthProvider).signOut();
+                      if (context.mounted) context.go('/login');
+                    } catch (e) {
+                      debugPrint('Logout error: $e');
+                    }
+                  }
+                },
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                leading: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 22),
+                ),
+                title: const Text(
+                  'Log Out',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: Color(0xFFDC2626),
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFFDC2626), size: 22),
+              ),
+            ),
+            const SizedBox(height: 32),
           ],
         ),
       ),
       bottomNavigationBar: const AppBottomNavBar(activeIndex: 4),
+    );
+  }
+
+  Widget _buildGroupedSettingTile({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFF6FF),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: const Color(0xFF003D9B), size: 22),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 15,
+          color: Color(0xFF0F172A),
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 22),
     );
   }
 
@@ -527,7 +871,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       children: [
         Text(
           title,
-          style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          style: const TextStyle(
+            fontSize: 16.5,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF0F172A),
+            letterSpacing: -0.2,
+          ),
         ),
         if (actionText != null)
           InkWell(
@@ -536,7 +885,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
               child: Text(
                 actionText,
-                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.primary),
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF003D9B),
+                ),
               ),
             ),
           ),
@@ -544,31 +897,13 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     );
   }
 
-  Widget _buildAlertPill(String text, Color bgColor, Color textColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: textColor,
-        ),
-      ),
-    );
-  }
-
   Widget _buildAddFamilyCard() {
     return Container(
-      width: 116,
-      height: 140,
+      width: 110,
+      height: 136,
       decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(24),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFCBD5E1), width: 1.5),
       ),
       child: Column(
@@ -580,7 +915,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             'Add New',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -600,22 +935,31 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     }
 
     return Container(
-      width: 116,
-      height: 140,
+      width: 110,
+      height: 136,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: isActive ? const Color(0xFF003D9B) : const Color(0xFFE5EDFF),
-        borderRadius: BorderRadius.circular(24),
-        border: isActive ? Border.all(color: Colors.white, width: 2) : null,
+        color: isActive ? const Color(0xFF003D9B) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isActive ? const Color(0xFF003D9B) : const Color(0xFFF1F5F9),
+          width: isActive ? 2 : 1.2,
+        ),
         boxShadow: isActive
             ? [
                 BoxShadow(
                   color: const Color(0xFF003D9B).withOpacity(0.3),
-                  blurRadius: 8,
+                  blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
               ]
-            : null,
+            : const [
+                BoxShadow(
+                  color: Color(0x060F172A),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -623,7 +967,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           CircleAvatar(
             radius: 22,
             backgroundImage: imageProvider,
-            backgroundColor: isActive ? Colors.white24 : const Color(0xFFD6E4FF),
+            backgroundColor: isActive ? Colors.white24 : const Color(0xFFEFF6FF),
           ),
           const SizedBox(height: 8),
           Text(
@@ -634,7 +978,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w800,
-              color: isActive ? Colors.white : const Color(0xFF1E293B),
+              color: isActive ? Colors.white : const Color(0xFF0F172A),
             ),
           ),
           const SizedBox(height: 2),
@@ -646,22 +990,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: isActive ? Colors.white.withOpacity(0.8) : const Color(0xFF64748B),
+              color: isActive ? Colors.white.withOpacity(0.85) : const Color(0xFF64748B),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSettingsTile(IconData icon, String title, {Color? iconColor, Color? textColor, required VoidCallback onTap}) {
-    return ListTile(
-      onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      tileColor: Theme.of(context).colorScheme.surfaceVariant,
-      leading: Icon(icon, color: iconColor ?? Theme.of(context).colorScheme.primary, size: 24),
-      title: Text(title, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: textColor ?? Theme.of(context).colorScheme.onSurfaceVariant)),
-      trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: Color(0xFF94A3B8)),
     );
   }
 }

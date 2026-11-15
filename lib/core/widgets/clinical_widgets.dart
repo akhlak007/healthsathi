@@ -367,7 +367,7 @@ class AppBottomNavBar extends StatelessWidget {
         child: Center(
             child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: isActive ? const Color(0xFFE8F0FE) : Colors.transparent,
               borderRadius: BorderRadius.circular(16),
@@ -378,17 +378,17 @@ class AppBottomNavBar extends StatelessWidget {
                 Icon(
                   isActive ? iconFilled : iconOutline,
                   color: isActive ? const Color(0xFF003D9B) : const Color(0xFF64748B),
-                  size: 24,
+                  size: 23,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   label,
                   style: TextStyle(
                     fontFamily: 'Inter',
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                     color: isActive ? const Color(0xFF003D9B) : const Color(0xFF64748B),
-                    letterSpacing: 0.1,
+                    letterSpacing: -0.1,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

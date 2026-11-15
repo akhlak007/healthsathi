@@ -2,8 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
+import '../../../../core/widgets/app_logo_loader.dart';
+import '../../profile/providers/active_profile_provider.dart';
+import '../../profile/widgets/profile_switcher_bottom_sheet.dart';
 import '../providers/upload_providers.dart';
 import '../../medicine_reminders/presentation/screens/add_reminder_screen.dart';
 
@@ -39,25 +43,96 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
   Widget build(BuildContext context) {
     final uploadState = ref.watch(uploadStateProvider);
     final notifier = ref.read(uploadStateProvider.notifier);
+    final user = FirebaseAuth.instance.currentUser;
+    final userInitials = (user?.displayName != null && user!.displayName!.isNotEmpty)
+        ? user.displayName!.split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase()
+        : 'AJ';
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Store Medical Records',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        titleSpacing: 16,
+        toolbarHeight: 68,
+        title: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/icons/app_logo.png',
+                width: 32,
+                height: 32,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Text(
+                  'HealthSathi',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF003D9B),
+                    letterSpacing: -0.6,
+                  ),
+                ),
+                SizedBox(height: 1),
+                Text(
+                  'Store Medical Records',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: () => showProfileSwitcher(context),
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF003D9B),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFFE2E8F0),
+                    width: 1.5,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  userInitials,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         actions: [
           if (uploadState.status != UploadStatus.idle)
             IconButton(
-              icon: const Icon(Icons.close_rounded, color: AppColors.outline),
+              icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
               onPressed: () => notifier.reset(),
             ),
+          const SizedBox(width: 8),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 350),
           switchInCurve: Curves.easeOut,
@@ -117,115 +192,134 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
       key: const ValueKey('selector'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 12),
-        Text(
+        const Text(
           'Digitize Record',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                fontSize: 24,
-                color: AppColors.onBackground,
-                letterSpacing: -0.5,
-              ),
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w800,
+            fontSize: 22,
+            color: Color(0xFF1E293B),
+            letterSpacing: -0.5,
+          ),
         ),
-        const SizedBox(height: 8),
-        Text(
+        const SizedBox(height: 6),
+        const Text(
           'Convert your paper prescriptions, lab reports, and medical bills into secure digital records.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.onSurfaceVariant,
-                height: 1.45,
-              ),
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 13.5,
+            color: Color(0xFF64748B),
+            height: 1.4,
+          ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 22),
 
-        // Dotted Border Container
+        // AI Extraction Card
         Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: AppColors.primary.withOpacity(0.3),
-              width: 2,
-              strokeAlign: BorderSide.strokeAlignOutside,
+              color: const Color(0xFFE2E8F0),
+              width: 1.0,
             ),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                  color: Color(0x03000000),
-                  blurRadius: 10,
-                  offset: Offset(0, 4)),
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
             ],
           ),
           child: Column(
             children: [
+              // AI Brain Badge with Sparkle
               Container(
-                padding: const EdgeInsets.all(12),
+                width: 58,
+                height: 58,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFFE0EDFF),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Icon(Icons.psychology_rounded,
-                    size: 32, color: AppColors.primary),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.psychology_rounded,
+                  size: 34,
+                  color: Color(0xFF003D9B),
+                ),
               ),
               const SizedBox(height: 16),
               const Text(
                 'AI-Powered Extraction',
                 style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.onBackground),
+                  fontFamily: 'Inter',
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1E293B),
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 'Our system automatically identifies medications, dates, and doctor names from your uploads.',
                 style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.onSurfaceVariant,
-                    height: 1.4),
+                  fontFamily: 'Inter',
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                  height: 1.45,
+                ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               _buildIconCard(
                 icon: Icons.camera_alt_rounded,
                 label: 'Camera',
                 description: 'Scan physical document',
-                color: AppColors.primary,
+                color: const Color(0xFF1D4ED8),
+                bgColor: const Color(0xFFF0F6FF),
                 onTap: () => notifier.pickFromCamera(),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
               _buildIconCard(
                 icon: Icons.image_rounded,
                 label: 'Gallery',
                 description: 'Choose from phone',
-                color: AppColors.secondary,
+                color: const Color(0xFF059669),
+                bgColor: const Color(0xFFF0FDF4),
                 onTap: () => notifier.pickFromGallery(),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
               _buildIconCard(
                 icon: Icons.picture_as_pdf_rounded,
                 label: 'Upload PDF',
                 description: 'Medical reports, E-prescriptions',
-                color: const Color(0xFFEA7A2B),
+                color: const Color(0xFFEA580C),
+                bgColor: const Color(0xFFFFF7ED),
                 onTap: () => notifier.pickPdf(),
               ),
             ],
           ),
         ),
 
-        const SizedBox(height: 32),
+        const SizedBox(height: 22),
 
         // Tips Section
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.withOpacity(0.1)),
-            boxShadow: const [
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFFE2E8F0),
+              width: 1.0,
+            ),
+            boxShadow: [
               BoxShadow(
-                  color: Color(0x03000000),
-                  blurRadius: 10,
-                  offset: Offset(0, 4)),
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
             ],
           ),
           child: Column(
@@ -234,20 +328,93 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
               const Text(
                 'TIPS FOR BEST RESULTS',
                 style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.outline,
-                    letterSpacing: 0.5),
+                  fontFamily: 'Inter',
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF64748B),
+                  letterSpacing: 0.8,
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               _buildTipRow(
-                icon: Icons.info_rounded,
-                text:
-                    'Ensure good lighting without glare on the document surface.',
+                icon: Icons.info_outline_rounded,
+                text: 'Ensure good lighting without glare on the document surface.',
               ),
               const SizedBox(height: 10),
               _buildTipRow(
-                icon: Icons.info_rounded,
+                icon: Icons.center_focus_strong_rounded,
+                text: 'Hold the camera steadily and align the document within the frame.',
+              ),
+              const SizedBox(height: 10),
+              _buildTipRow(
+                icon: Icons.document_scanner_outlined,
+                text: 'Keep pages flat and edges clearly visible for high AI accuracy.',
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 32),
+      ],
+    );
+  }
+
+  // ─── PROCESSING LOADER ───────────────────────────────────────────
+  Widget _buildProcessingLoader({
+    required String key,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    return Center(
+      key: ValueKey(key),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
+        child: Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const AppLogoLoader(size: 72),
+              const SizedBox(height: 24),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
                 text:
                     'Hold the camera steadily and align the document within the frame.',
               ),
@@ -738,38 +905,74 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
     required String label,
     required String description,
     required Color color,
+    required Color bgColor,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: color.withOpacity(0.18),
+            width: 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            child: Icon(icon, size: 40, color: color),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: color,
-                letterSpacing: -0.3),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            description,
-            style: TextStyle(
-                fontSize: 12, color: AppColors.outline, height: 1.4),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.14),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 24, color: color),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 12,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF94A3B8),
+              size: 22,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -778,13 +981,27 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: AppColors.outline),
-        const SizedBox(width: 8),
+        Container(
+          margin: const EdgeInsets.only(top: 2),
+          width: 20,
+          height: 20,
+          decoration: const BoxDecoration(
+            color: Color(0xFFE8F1FE),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Icon(icon, size: 13, color: Color(0xFF003D9B)),
+        ),
+        const SizedBox(width: 12),
         Expanded(
           child: Text(
             text,
             style: const TextStyle(
-                fontSize: 12, color: AppColors.onSurfaceVariant, height: 1.4),
+              fontFamily: 'Inter',
+              fontSize: 12.5,
+              color: Color(0xFF475569),
+              height: 1.4,
+            ),
           ),
         ),
       ],

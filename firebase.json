@@ -9,6 +9,20 @@
   "storage": {
     "rules": "storage.rules"
   },
+  "hosting": {
+    "public": "../healthSathi-v2/apps/frontend/out",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
   "flutter": {
     "platforms": {
       "android": {

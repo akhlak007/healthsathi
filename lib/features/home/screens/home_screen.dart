@@ -156,7 +156,17 @@ class HomeScreen extends ConsumerWidget {
                           ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.asset(
+                    'assets/icons/app_logo.png',
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -165,7 +175,7 @@ class HomeScreen extends ConsumerWidget {
                       'HealthSathi',
                       style: TextStyle(
                         fontFamily: 'Inter',
-                        fontSize: 21,
+                        fontSize: 20,
                         fontWeight: FontWeight.w900,
                         color: Color(0xFF003D9B),
                         letterSpacing: -0.6,
@@ -1262,6 +1272,47 @@ class HomeScreen extends ConsumerWidget {
                       context.pop();
                       context.push('/settings');
                     },
+                  ),
+                ],
+              ),
+            ),
+            const Spacer(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      'assets/icons/app_logo.png',
+                      width: 36,
+                      height: 36,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text(
+                        'HealthSathi',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF003D9B),
+                        ),
+                      ),
+                      Text(
+                        'আপনার স্বাস্থ্য, আপনার হাতে',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

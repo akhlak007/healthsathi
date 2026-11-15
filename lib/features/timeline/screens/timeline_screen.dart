@@ -1,10 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/clinical_widgets.dart';
+import '../../../../core/widgets/medical_illustrations.dart';
+import '../../profile/providers/active_profile_provider.dart';
+import '../../profile/widgets/profile_switcher_bottom_sheet.dart';
+import '../../medicine_reminders/presentation/screens/reminder_center_screen.dart';
+import '../../notifications/providers/notification_provider.dart';
 import '../providers/timeline_provider.dart';
 import '../../upload/domain/entities/ocr_record.dart';
 
@@ -30,7 +36,8 @@ class TimelineFilter {
     SortOrder? sortOrder,
   }) {
     return TimelineFilter(
-      recordType: recordType == _sentinel ? this.recordType : recordType as String?,
+      recordType:
+          recordType == _sentinel ? this.recordType : recordType as String?,
       dateRange: dateRange == _sentinel ? this.dateRange : dateRange as DateRange?,
       sortOrder: sortOrder ?? this.sortOrder,
     );
@@ -55,94 +62,74 @@ class TimelineScreen extends ConsumerStatefulWidget {
 }
 
 class _TimelineScreenState extends ConsumerState<TimelineScreen> {
-  TimelineFilter _filter = const TimelineFilter();
+  // Pill filter selection: 'all', 'reports', 'prescriptions', 'visits'
+  String _selectedPill = 'all';
+  TimelineFilter _advancedFilter = const TimelineFilter();
 
-  // ─── Helpers ───────────────────────────────────────────────────────────────
-
-  Color _categoryColor(String recordType) {
-    switch (recordType.toLowerCase()) {
-      case 'prescription':
-        return AppColors.primary;
-      case 'test_report':
-        return Colors.amber.shade800;
-      case 'vaccination':
-        return Colors.teal;
-      case 'doctor_visit':
-        return const Color(0xFF7B2D8E);
-      case 'pdf_report':
-        return const Color(0xFFEA7A2B);
-      default:
-        return AppColors.primary;
+  String _getInitials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts[0].isEmpty) return 'HS';
+    if (parts.length == 1) {
+      return parts[0].length >= 2
+          ? parts[0].substring(0, 2).toUpperCase()
+          : parts[0].toUpperCase();
     }
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
   }
 
-  String _categoryLabel(String recordType) {
-    switch (recordType.toLowerCase()) {
-      case 'prescription':
-        return 'Prescription';
-      case 'test_report':
-        return 'Test Report';
-      case 'vaccination':
-        return 'Vaccination';
-      case 'doctor_visit':
-        return 'Doctor Visit';
-      case 'pdf_report':
-        return 'PDF Report';
-      default:
-        return recordType;
-    }
-  }
-
-  IconData _categoryIcon(String recordType) {
-    switch (recordType.toLowerCase()) {
-      case 'prescription':
-        return Icons.medication_rounded;
-      case 'test_report':
-        return Icons.biotech_rounded;
-      case 'vaccination':
-        return Icons.vaccines_rounded;
-      case 'doctor_visit':
-        return Icons.local_hospital_rounded;
-      case 'pdf_report':
-        return Icons.picture_as_pdf_rounded;
-      default:
-        return Icons.description_rounded;
-    }
-  }
-
-  String _monthName(int month) {
+  String _formatDate(DateTime dt) {
     const months = [
       '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
-    return months[month];
+    return '${dt.day} ${months[dt.month]}, ${dt.year}';
   }
 
   // ─── Filter Logic ──────────────────────────────────────────────────────────
 
-  List<OcrRecord> _applyFilter(List<OcrRecord> records) {
+  List<OcrRecord> _filterRecords(List<OcrRecord> records) {
     var result = records.toList();
 
-    // Filter by type
-    if (_filter.recordType != null) {
+    // 1. Horizontal Quick Pills
+    if (_selectedPill == 'reports') {
+      result = result.where((r) {
+        final t = r.recordType.toLowerCase();
+        return t == 'test_report' || t == 'pdf_report' || t.contains('report') || t.contains('lab');
+      }).toList();
+    } else if (_selectedPill == 'prescriptions') {
+      result = result.where((r) {
+        final t = r.recordType.toLowerCase();
+        return t == 'prescription' || t.contains('rx') || t.contains('med');
+      }).toList();
+    } else if (_selectedPill == 'visits') {
+      result = result.where((r) {
+        final t = r.recordType.toLowerCase();
+        return t == 'doctor_visit' || t == 'vaccination' || t.contains('visit') || t.contains('doctor');
+      }).toList();
+    }
+
+    // 2. Advanced filters (if active)
+    if (_advancedFilter.recordType != null) {
       result = result
-          .where((r) => r.recordType.toLowerCase() == _filter.recordType!.toLowerCase())
+          .where((r) =>
+              r.recordType.toLowerCase() == _advancedFilter.recordType!.toLowerCase())
           .toList();
     }
 
-    // Filter by date range
-    if (_filter.dateRange != null) {
-      final from = _filter.dateRange!.from;
-      final to = _filter.dateRange!.to.add(const Duration(days: 1));
+    if (_advancedFilter.dateRange != null) {
+      final from = _advancedFilter.dateRange!.from;
+      final to = _advancedFilter.dateRange!.to.add(const Duration(days: 1));
       result = result
-          .where((r) => r.date.isAfter(from.subtract(const Duration(days: 1))) && r.date.isBefore(to))
+          .where((r) =>
+              r.date.isAfter(from.subtract(const Duration(days: 1))) &&
+              r.date.isBefore(to))
           .toList();
     }
 
     // Sort
     result.sort((a, b) {
       final cmp = a.createdAt.compareTo(b.createdAt);
-      return _filter.sortOrder == SortOrder.newest ? -cmp : cmp;
+      return _advancedFilter.sortOrder == SortOrder.newest ? -cmp : cmp;
     });
 
     return result;
@@ -155,1028 +142,998 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _FilterSheet(
-        currentFilter: _filter,
-        onApply: (filter) {
-          setState(() => _filter = filter);
-        },
-        onClear: () {
-          setState(() => _filter = const TimelineFilter());
-        },
-        categoryLabel: _categoryLabel,
-      ),
-    );
-  }
-
-  // ─── Build ─────────────────────────────────────────────────────────────────
-
-  @override
-  Widget build(BuildContext context) {
-    final recordsAsync = ref.watch(timelineRecordsProvider);
-    final textTheme = Theme.of(context).textTheme;
-
-    final activeFilterCount = [
-      if (_filter.recordType != null) 1,
-      if (_filter.dateRange != null) 1,
-      if (_filter.sortOrder != SortOrder.newest) 1,
-    ].length;
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('Clinical History Ledger',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: Icon(
-                  Icons.filter_list_rounded,
-                  color: _filter.isActive ? AppColors.primary : AppColors.primary,
-                ),
-                onPressed: _showFilterSheet,
-              ),
-              if (activeFilterCount > 0)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    width: 16,
-                    height: 16,
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$activeFilterCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: recordsAsync.when(
-        loading: () => _buildLoadingShimmer(),
-        error: (err, stack) => _buildErrorState(context, err),
-        data: (allRecords) {
-          final records = _applyFilter(allRecords);
-
-          if (allRecords.isEmpty) {
-            return _buildEmptyState(context, textTheme);
-          }
-
-          if (records.isEmpty) {
-            return _buildNoResultsState(context);
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(timelineRecordsProvider);
-            },
-            child: _buildTimelineList(context, records, textTheme),
-          );
-        },
-      ),
-      bottomNavigationBar: const AppBottomNavBar(activeIndex: 1),
-    );
-  }
-
-  // ─── LOADING SHIMMER ─────────────────────────────────────────────
-  Widget _buildLoadingShimmer() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      itemCount: 4,
-      itemBuilder: (context, index) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 20),
-          child: Shimmer.fromColors(
-            baseColor: Colors.grey.shade200,
-            highlightColor: Colors.grey.shade50,
-            child: Container(
-              height: 160,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ─── EMPTY STATE ─────────────────────────────────────────────────
-  Widget _buildEmptyState(BuildContext context, TextTheme textTheme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.06),
-                  shape: BoxShape.circle),
-              child: const Icon(Icons.history_edu_rounded,
-                  size: 64, color: AppColors.primary),
-            ),
-            const SizedBox(height: 16),
-            Text('No diagnostic entries',
-                style: textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(
-                'Scan paper prescriptions or reports to initiate your clinical health ledger.',
-                textAlign: TextAlign.center,
-                style: textTheme.bodyMedium),
-            const SizedBox(height: 32),
-            ClinicalButton(
-              label: 'Upload First Record',
-              icon: Icons.add_rounded,
-              isFullWidth: false,
-              onPressed: () => context.go('/upload'),
-            ),
-          ],
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-      ),
-    );
-  }
-
-  // ─── NO RESULTS (after filter) ───────────────────────────────────
-  Widget _buildNoResultsState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.search_off_rounded,
-                  size: 64, color: Colors.orange),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No records match your filters',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Try adjusting or clearing your filters.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.onSurfaceVariant),
-            ),
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.filter_list_off_rounded),
-              label: const Text('Clear Filters'),
-              onPressed: () => setState(() => _filter = const TimelineFilter()),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── ERROR STATE ─────────────────────────────────────────────────
-  Widget _buildErrorState(BuildContext context, Object err) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.08),
-                  shape: BoxShape.circle),
-              child: const Icon(Icons.error_outline_rounded,
-                  size: 64, color: AppColors.error),
-            ),
-            const SizedBox(height: 16),
-            const Text('Failed to load records',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.error)),
-            const SizedBox(height: 8),
-            Text(
-              err.toString(),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  color: AppColors.onSurfaceVariant, fontSize: 13),
-            ),
-            const SizedBox(height: 24),
-            ClinicalButton(
-              label: 'Retry',
-              icon: Icons.refresh_rounded,
-              isFullWidth: false,
-              onPressed: () => ref.invalidate(timelineRecordsProvider),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── TIMELINE LIST ───────────────────────────────────────────────
-  Widget _buildTimelineList(
-      BuildContext context, List<OcrRecord> records, TextTheme textTheme) {
-    // Group by date
-    final Map<String, List<OcrRecord>> grouped = {};
-    for (final record in records) {
-      final dateKey =
-          '${record.createdAt.day} ${_monthName(record.createdAt.month)}, ${record.createdAt.year}';
-      grouped.putIfAbsent(dateKey, () => []).add(record);
-    }
-
-    final groupKeys = grouped.keys.toList();
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      itemCount: groupKeys.length,
-      itemBuilder: (context, groupIndex) {
-        final dateKey = groupKeys[groupIndex];
-        final groupRecords = grouped[dateKey]!;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Date header
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16, top: 8),
-              child: Row(
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      dateKey,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      height: 1,
-                      color: AppColors.outlineVariant.withValues(alpha: 0.3),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Records in this group
-            ...groupRecords.asMap().entries.map((entry) {
-              final _ = entry.key;  // index not used; kept for asMap() pattern
-              final record = entry.value;
-              final color = _categoryColor(record.recordType);
-
-              return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Timeline connector
-                    SizedBox(
-                      width: 24,
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: Container(
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                  color: color, shape: BoxShape.circle),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-
-                    // Card
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        child: GestureDetector(
-                          onTap: () =>
-                              context.go('/record/${record.id}'),
-                          child: MedicalCard(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Header row
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: color.withValues(alpha: 0.1),
-                                        borderRadius:
-                                            BorderRadius.circular(10),
-                                      ),
-                                      child: Icon(
-                                          _categoryIcon(record.recordType),
-                                          size: 18,
-                                          color: color),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            _categoryLabel(
-                                                record.recordType),
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: color,
-                                            ),
-                                          ),
-                                          if (record.recordLabel.isNotEmpty) ...[
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              record.recordLabel,
-                                              maxLines: 1,
-                                              overflow:
-                                                  TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                color: AppColors.onSurfaceVariant,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                          if (record.doctorName.isNotEmpty)
-                                            Text(
-                                              record.doctorName,
-                                              maxLines: 1,
-                                              overflow:
-                                                  TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                color: AppColors.onSurfaceVariant,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: color.withValues(alpha: 0.08),
-                                        borderRadius:
-                                            BorderRadius.circular(20),
-                                        border: Border.all(
-                                            color:
-                                                color.withValues(alpha: 0.16)),
-                                      ),
-                                      child: Text(
-                                        _categoryLabel(record.recordType),
-                                        style: TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: color),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-
-                                // Thumbnail or PDF indicator
-                                if (record.imageUrl != null &&
-                                    record.imageUrl!.isNotEmpty) ...[
-                                  const SizedBox(height: 12),
-                                  ClipRRect(
-                                    borderRadius:
-                                        BorderRadius.circular(10),
-                                    child: CachedNetworkImage(
-                                      imageUrl: record.imageUrl!,
-                                      height: 100,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      placeholder: (_, __) =>
-                                          Container(
-                                        height: 100,
-                                        color:
-                                            Colors.grey.shade100,
-                                        child: const Center(
-                                            child:
-                                                CircularProgressIndicator(
-                                                    strokeWidth:
-                                                        2)),
-                                      ),
-                                      errorWidget:
-                                          (_, __, ___) =>
-                                              Container(
-                                        height: 100,
-                                        color:
-                                            Colors.grey.shade100,
-                                        child: const Icon(
-                                            Icons
-                                                .broken_image_rounded,
-                                            color:
-                                                AppColors.outline),
-                                      ),
-                                    ),
-                                  ),
-                                ] else if (record.pdfUrl != null &&
-                                    record.pdfUrl!.isNotEmpty) ...[
-                                  const SizedBox(height: 12),
-                                  Container(
-                                    height: 100,
-                                    width: double.infinity,
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.shade50,
-                                      borderRadius:
-                                          BorderRadius.circular(10),
-                                      border: Border.all(
-                                          color: Colors.orange.shade100),
-                                    ),
-                                    child: Center(
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: const [
-                                          Icon(
-                                            Icons.picture_as_pdf_rounded,
-                                            size: 28,
-                                            color: Colors.orange,
-                                          ),
-                                          SizedBox(width: 10),
-                                          Text(
-                                            'PDF Attached',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.orange,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-
-                                if (record.hospitalName.isNotEmpty) ...[
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.location_on_outlined,
-                                          size: 13, color: AppColors.outline),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          record.hospitalName,
-                                          maxLines: 1,
-                                          overflow:
-                                              TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                              fontSize: 12,
-                                              color: AppColors.onSurfaceVariant),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-
-                                const Divider(
-                                    height: 16, thickness: 0.5),
-
-                                // Preview text
-                                Text(
-                                  record.ocrText.isNotEmpty
-                                      ? (record.ocrText.length > 120
-                                          ? '${record.ocrText.substring(0, 120)}...'
-                                          : record.ocrText)
-                                      : 'No extracted text available.',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color:
-                                        AppColors.onSurfaceVariant,
-                                    height: 1.45,
-                                  ),
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-
-                                // Medicines chips
-                                if (record.medicines.isNotEmpty) ...[
-                                  const SizedBox(height: 10),
-                                  Wrap(
-                                    spacing: 6,
-                                    runSpacing: 4,
-                                    children: record.medicines
-                                        .take(3)
-                                        .map((m) => ConstrainedBox(
-                                              constraints: const BoxConstraints(maxWidth: 150),
-                                              child: Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                    horizontal: 8, vertical: 3),
-                                                decoration: BoxDecoration(
-                                                  color: color.withValues(alpha: 0.06),
-                                                  borderRadius: BorderRadius.circular(12),
-                                                ),
-                                                child: Text(
-                                                  '💊 $m',
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    color: color,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ),
-                                            ))
-                                        .toList(),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-            }),
-          ],
-        );
-      },
-    );
-  }
-}
-
-// ─── Filter Bottom Sheet Widget ───────────────────────────────────────────────
-
-class _FilterSheet extends StatefulWidget {
-  final TimelineFilter currentFilter;
-  final ValueChanged<TimelineFilter> onApply;
-  final VoidCallback onClear;
-  final String Function(String) categoryLabel;
-
-  const _FilterSheet({
-    required this.currentFilter,
-    required this.onApply,
-    required this.onClear,
-    required this.categoryLabel,
-  });
-
-  @override
-  State<_FilterSheet> createState() => _FilterSheetState();
-}
-
-class _FilterSheetState extends State<_FilterSheet> {
-  late String? _selectedType;
-  late SortOrder _sortOrder;
-  DateTime? _fromDate;
-  DateTime? _toDate;
-
-  static const _types = <(String, String, IconData, Color)>[
-    ('prescription', 'Prescription', Icons.medication_rounded, AppColors.primary),
-    ('test_report', 'Test Report', Icons.biotech_rounded, Colors.amber),
-    ('vaccination', 'Vaccination', Icons.vaccines_rounded, Colors.teal),
-    ('doctor_visit', 'Doctor Visit', Icons.local_hospital_rounded, Color(0xFF7B2D8E)),
-    ('pdf_report', 'PDF Report', Icons.picture_as_pdf_rounded, Color(0xFFEA7A2B)),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedType = widget.currentFilter.recordType;
-    _sortOrder = widget.currentFilter.sortOrder;
-    _fromDate = widget.currentFilter.dateRange?.from;
-    _toDate = widget.currentFilter.dateRange?.to;
-  }
-
-  Future<void> _pickDate({required bool isFrom}) async {
-    final initial = isFrom
-        ? (_fromDate ?? DateTime.now().subtract(const Duration(days: 30)))
-        : (_toDate ?? DateTime.now());
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.light(primary: AppColors.primary),
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null) {
-      setState(() {
-        if (isFrom) {
-          _fromDate = picked;
-          // Ensure toDate is not before fromDate
-          if (_toDate != null && _toDate!.isBefore(_fromDate!)) {
-            _toDate = _fromDate;
-          }
-        } else {
-          _toDate = picked;
-          if (_fromDate != null && _fromDate!.isAfter(_toDate!)) {
-            _fromDate = _toDate;
-          }
-        }
-      });
-    }
-  }
-
-  String _fmtDate(DateTime? dt) {
-    if (dt == null) return 'Select';
-    return '${dt.day.toString().padLeft(2, '0')} ${_monthName(dt.month)} ${dt.year}';
-  }
-
-  String _monthName(int m) {
-    const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months[m];
-  }
-
-  void _apply() {
-    DateRange? range;
-    if (_fromDate != null && _toDate != null) {
-      range = DateRange(_fromDate!, _toDate!);
-    } else if (_fromDate != null) {
-      range = DateRange(_fromDate!, DateTime.now());
-    } else if (_toDate != null) {
-      range = DateRange(DateTime(2000), _toDate!);
-    }
-
-    widget.onApply(TimelineFilter(
-      recordType: _selectedType,
-      dateRange: range,
-      sortOrder: _sortOrder,
-    ));
-    Navigator.pop(context);
-  }
-
-  void _clear() {
-    widget.onClear();
-    Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Title row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Filter Records',
+                  'Filter History Ledger',
                   style: TextStyle(
+                    fontFamily: 'Inter',
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF1E293B),
                   ),
                 ),
                 TextButton(
-                  onPressed: _clear,
-                  child: const Text(
-                    'Clear All',
-                    style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
-                  ),
+                  onPressed: () {
+                    setState(() {
+                      _selectedPill = 'all';
+                      _advancedFilter = const TimelineFilter();
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Reset All'),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-
-            // ── Record Type ──────────────────────────────────────────────────
-            const Text(
-              'RECORD TYPE',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-                letterSpacing: 1.0,
-              ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.sort_rounded, color: Color(0xFF003D9B)),
+              title: const Text('Sort Newest First'),
+              trailing: _advancedFilter.sortOrder == SortOrder.newest
+                  ? const Icon(Icons.check_rounded, color: Color(0xFF003D9B))
+                  : null,
+              onTap: () {
+                setState(() {
+                  _advancedFilter = _advancedFilter.copyWith(sortOrder: SortOrder.newest);
+                });
+                Navigator.pop(context);
+              },
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _types.map((t) {
-                final isSelected = _selectedType == t.$1;
-                return GestureDetector(
-                  onTap: () => setState(() {
-                    _selectedType = isSelected ? null : t.$1;
-                  }),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? t.$4.withValues(alpha: 0.12)
-                          : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected ? t.$4 : Colors.transparent,
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(t.$3, size: 14, color: isSelected ? t.$4 : Colors.grey),
-                        const SizedBox(width: 6),
-                        Text(
-                          t.$2,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                            color: isSelected ? t.$4 : const Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
+            ListTile(
+              leading: const Icon(Icons.history_rounded, color: Color(0xFF003D9B)),
+              title: const Text('Sort Oldest First'),
+              trailing: _advancedFilter.sortOrder == SortOrder.oldest
+                  ? const Icon(Icons.check_rounded, color: Color(0xFF003D9B))
+                  : null,
+              onTap: () {
+                setState(() {
+                  _advancedFilter = _advancedFilter.copyWith(sortOrder: SortOrder.oldest);
+                });
+                Navigator.pop(context);
+              },
             ),
-            const SizedBox(height: 24),
-
-            // ── Date Range ───────────────────────────────────────────────────
-            const Text(
-              'DATE RANGE',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-                letterSpacing: 1.0,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _DatePickerButton(
-                    label: 'From',
-                    value: _fmtDate(_fromDate),
-                    hasValue: _fromDate != null,
-                    onTap: () => _pickDate(isFrom: true),
-                    onClear: () => setState(() => _fromDate = null),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _DatePickerButton(
-                    label: 'To',
-                    value: _fmtDate(_toDate),
-                    hasValue: _toDate != null,
-                    onTap: () => _pickDate(isFrom: false),
-                    onClear: () => setState(() => _toDate = null),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // ── Sort Order ───────────────────────────────────────────────────
-            const Text(
-              'SORT BY',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-                letterSpacing: 1.0,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _SortChip(
-                    label: 'Newest First',
-                    icon: Icons.arrow_downward_rounded,
-                    selected: _sortOrder == SortOrder.newest,
-                    onTap: () => setState(() => _sortOrder = SortOrder.newest),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _SortChip(
-                    label: 'Oldest First',
-                    icon: Icons.arrow_upward_rounded,
-                    selected: _sortOrder == SortOrder.oldest,
-                    onTap: () => setState(() => _sortOrder = SortOrder.oldest),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 28),
-
-            // ── Apply button ─────────────────────────────────────────────────
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _apply,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Apply Filters',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
-}
-
-// ─── Helper widgets ───────────────────────────────────────────────────────────
-
-class _DatePickerButton extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool hasValue;
-  final VoidCallback onTap;
-  final VoidCallback onClear;
-
-  const _DatePickerButton({
-    required this.label,
-    required this.value,
-    required this.hasValue,
-    required this.onTap,
-    required this.onClear,
-  });
 
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final activeProfileId = ref.watch(activeProfileProvider);
+    final recordsAsync = ref.watch(timelineRecordsProvider);
+
+    if (uid == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: activeProfileId == 'self'
+          ? FirebaseFirestore.instance.collection('users').doc(uid).snapshots()
+          : FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .collection('familyProfiles')
+              .doc(activeProfileId)
+              .snapshots(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() as Map<String, dynamic>?;
+        final isSelf = activeProfileId == 'self';
+
+        final name = data?['name'] ?? (isSelf ? 'User' : 'Family Member');
+        final bloodGroup = data?['bloodGroup'] ?? 'Not Set';
+        final rawImageUrl = isSelf ? (data?['profileImage']) : (data?['photoUrl']);
+        final hasCustomPhoto = rawImageUrl != null &&
+            rawImageUrl != 'default' &&
+            !rawImageUrl.contains('ui-avatars.com');
+        final initials = _getInitials(name);
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFF8FAFC),
+          endDrawer: _buildDrawer(
+            context: context,
+            name: name,
+            profileImageUrl: rawImageUrl ?? '',
+            hasCustomPhoto: hasCustomPhoto,
+            initials: initials,
+            bloodGroup: bloodGroup,
+            patientId: data != null
+                ? (data['patientId'] as String?) ?? 'Generating...'
+                : 'Generating...',
+          ),
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            backgroundColor: Colors.white,
+            elevation: 0,
+            titleSpacing: 16,
+            toolbarHeight: 68,
+            title: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => showProfileSwitcher(context),
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF003D9B),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFFE2E8F0),
+                        width: 1.5,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: hasCustomPhoto
+                        ? ClipOval(
+                            child: rawImageUrl.startsWith('data:')
+                                ? Image.memory(
+                                    base64Decode(
+                                        rawImageUrl.split(',').last),
+                                    width: 42,
+                                    height: 42,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Image.network(
+                                    rawImageUrl,
+                                    width: 42,
+                                    height: 42,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Text(
+                                      initials,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        fontFamily: 'Inter',
+                                      ),
+                                    ),
+                                  ),
+                          )
+                        : Text(
+                            initials,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'Inter',
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Text(
+                      'HealthSathi',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 21,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF003D9B),
+                        letterSpacing: -0.6,
+                      ),
+                    ),
+                    SizedBox(height: 1),
+                    Text(
+                      'আপনার স্বাস্থ্য, আপনার হাতে',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 11.5,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              Consumer(
+                builder: (context, ref, child) {
+                  final unreadCount =
+                      ref.watch(unreadNotificationCountProvider);
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.notifications_none_rounded,
+                          color: Color(0xFF1E293B),
+                          size: 26,
+                        ),
+                        onPressed: () => context.push('/notifications'),
+                      ),
+                      if (unreadCount > 0)
+                        Positioned(
+                          top: 13,
+                          right: 14,
+                          child: Container(
+                            width: 9,
+                            height: 9,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+              Builder(
+                builder: (context) => IconButton(
+                  icon: const Icon(
+                    Icons.menu_rounded,
+                    color: Color(0xFF1E293B),
+                    size: 27,
+                  ),
+                  onPressed: () => Scaffold.of(context).openEndDrawer(),
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
+          ),
+          body: SafeArea(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(timelineRecordsProvider);
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 1. Header: "Health Timeline" + "Full History →"
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F1FE),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.calendar_month_rounded,
+                                color: Color(0xFF003D9B),
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Text(
+                              'Health Timeline',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1E293B),
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                        GestureDetector(
+                          onTap: _showFilterSheet,
+                          child: Row(
+                            children: const [
+                              Text(
+                                'Full History',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 13,
+                                  color: Color(0xFF003D9B),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 14,
+                                color: Color(0xFF003D9B),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Your medical journey, all in one place.',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13.5,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // 2. Horizontal Filter Pills: "All", "Reports", "Prescriptions", "Visits"
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildFilterPill('All', 'all'),
+                          const SizedBox(width: 10),
+                          _buildFilterPill('Reports', 'reports'),
+                          const SizedBox(width: 10),
+                          _buildFilterPill('Prescriptions', 'prescriptions'),
+                          const SizedBox(width: 10),
+                          _buildFilterPill('Visits', 'visits'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 3. Vertical Medical Timeline List
+                    recordsAsync.when(
+                      data: (allRecords) {
+                        final records = _filterRecords(allRecords);
+
+                        if (allRecords.isEmpty) {
+                          return _buildEmptyState();
+                        }
+
+                        if (records.isEmpty) {
+                          return _buildNoResultsState();
+                        }
+
+                        return Column(
+                          children: List.generate(records.length, (index) {
+                            final rec = records[index];
+                            final isFirst = index == 0;
+                            final isLast = index == records.length - 1;
+                            return _buildTimelineItem(
+                              record: rec,
+                              isFirst: isFirst,
+                              isLast: isLast,
+                            );
+                          }),
+                        );
+                      },
+                      loading: () => const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (err, _) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: Text(
+                            'Could not load records: $err',
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // 4. Promo Banner: "Keep Your Health History Organized"
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFFDBEAFE),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Text(
+                                  'Keep Your Health History\nOrganized',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF1E293B),
+                                    height: 1.25,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                SizedBox(height: 6),
+                                Text(
+                                  'All your reports, prescriptions, and visits in one secure place.',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 12.5,
+                                    color: Color(0xFF64748B),
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const ClipboardIllustrationWidget(size: 84),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          bottomNavigationBar: const AppBottomNavBar(activeIndex: 1),
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterPill(String label, String value) {
+    final isSelected = _selectedPill == value;
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      onTap: () {
+        setState(() {
+          _selectedPill = value;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
         decoration: BoxDecoration(
-          color: hasValue
-              ? AppColors.primary.withValues(alpha: 0.06)
-              : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(12),
+          color: isSelected ? const Color(0xFF003D9B) : Colors.white,
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: hasValue ? AppColors.primary : Colors.transparent,
+            color: isSelected ? const Color(0xFF003D9B) : const Color(0xFFE2E8F0),
+            width: 1.0,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF003D9B).withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected ? Colors.white : const Color(0xFF475569),
           ),
         ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.calendar_today_rounded,
-              size: 15,
-              color: hasValue ? AppColors.primary : Colors.grey,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: hasValue ? AppColors.primary : Colors.grey,
-                      fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  Widget _buildTimelineItem({
+    required OcrRecord record,
+    required bool isFirst,
+    required bool isLast,
+  }) {
+    final type = record.recordType.toLowerCase();
+
+    // Style parameters based on category
+    Color badgeBg;
+    Color badgeColor;
+    String badgeText;
+    IconData icon;
+    Color iconColor;
+    Color iconBg;
+    String defaultTitle;
+    String defaultSubtitle;
+
+    if (type == 'test_report' || type == 'pdf_report' || type.contains('report') || type.contains('lab')) {
+      badgeBg = const Color(0xFFDCFCE7);
+      badgeColor = const Color(0xFF15803D);
+      badgeText = 'LAB REPORT';
+      icon = Icons.science_outlined;
+      iconColor = const Color(0xFF059669);
+      iconBg = const Color(0xFFE8F8F0);
+      defaultTitle = 'Lab Report';
+      defaultSubtitle = 'Complete Blood Count (CBC)';
+    } else if (type == 'prescription' || type.contains('rx')) {
+      badgeBg = const Color(0xFFEFF6FF);
+      badgeColor = const Color(0xFF1D4ED8);
+      badgeText = 'PRESCRIPTION';
+      icon = Icons.medication_outlined;
+      iconColor = const Color(0xFF1D4ED8);
+      iconBg = const Color(0xFFE0EDFF);
+      defaultTitle = 'Prescription';
+      defaultSubtitle = 'Fever & Cough';
+    } else if (type == 'doctor_visit' || type.contains('visit') || type.contains('doctor')) {
+      badgeBg = const Color(0xFFF3E8FF);
+      badgeColor = const Color(0xFF7E22CE);
+      badgeText = 'DOCTOR VISIT';
+      icon = Icons.medical_services_outlined;
+      iconColor = const Color(0xFF7E22CE);
+      iconBg = const Color(0xFFF5EEFD);
+      defaultTitle = 'Doctor Visit';
+      defaultSubtitle = 'General Checkup';
+    } else {
+      badgeBg = const Color(0xFFFEF3C7);
+      badgeColor = const Color(0xFFB45309);
+      badgeText = 'HEALTH RECORD';
+      icon = Icons.description_outlined;
+      iconColor = const Color(0xFFB45309);
+      iconBg = const Color(0xFFFFFBEB);
+      defaultTitle = 'Medical Record';
+      defaultSubtitle = 'Routine Diagnostic Entry';
+    }
+
+    final title = record.recordLabel.isNotEmpty
+        ? record.recordLabel
+        : defaultTitle;
+    final subtitle = record.doctorName.isNotEmpty
+        ? 'Dr. ${record.doctorName}'
+        : defaultSubtitle;
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Left Vertical Timeline Connector
+          SizedBox(
+            width: 22,
+            child: Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                if (!isLast)
+                  Positioned(
+                    top: 24,
+                    bottom: 0,
+                    child: Container(
+                      width: 2,
+                      color: const Color(0xFFE2E8F0),
                     ),
                   ),
-                  Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: hasValue ? AppColors.primary : const Color(0xFF94A3B8),
+                Container(
+                  margin: const EdgeInsets.only(top: 20),
+                  width: isFirst ? 12 : 10,
+                  height: isFirst ? 12 : 10,
+                  decoration: BoxDecoration(
+                    color: isFirst
+                        ? const Color(0xFF003D9B)
+                        : const Color(0xFF93C5FD),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Timeline Content Card
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: GestureDetector(
+                onTap: () => context.push('/record/${record.id}'),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFFE2E8F0),
+                      width: 1.0,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Date & Category Badge Row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _formatDate(record.createdAt),
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 3.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: badgeBg,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              badgeText,
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: badgeColor,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Icon + Title & Subtitle + Chevron
+                      Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: iconBg,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              icon,
+                              color: iconColor,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF1E293B),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  subtitle,
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 12.5,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: Color(0xFF94A3B8),
+                            size: 22,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F1FE),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.history_edu_rounded,
+              color: Color(0xFF003D9B),
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'No records found',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Upload your prescriptions or lab reports to populate your medical timeline.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 13,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 18),
+          ElevatedButton.icon(
+            onPressed: () => context.push('/upload'),
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Add First Record'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF003D9B),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoResultsState() {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.filter_list_off_rounded,
+            color: Color(0xFF94A3B8),
+            size: 40,
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'No records in this category',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _selectedPill = 'all';
+                _advancedFilter = const TimelineFilter();
+              });
+            },
+            child: const Text('Clear Filters'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawer({
+    required BuildContext context,
+    required String name,
+    required String profileImageUrl,
+    required bool hasCustomPhoto,
+    required String initials,
+    required String bloodGroup,
+    required String patientId,
+  }) {
+    return Drawer(
+      backgroundColor: const Color(0xFFF8FAFC),
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: const Color(0xFF003D9B),
+                    backgroundImage: hasCustomPhoto
+                        ? (profileImageUrl.startsWith('data:')
+                            ? MemoryImage(base64Decode(
+                                    profileImageUrl.split(',').last))
+                                as ImageProvider
+                            : NetworkImage(profileImageUrl))
+                        : null,
+                    child: !hasCustomPhoto
+                        ? Text(
+                            initials,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'Inter',
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Patient ID: $patientId',
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            const Text(
+                              'Blood Group: ',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF003D9B),
+                              ),
+                            ),
+                            Text(
+                              bloodGroup,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF003D9B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-            if (hasValue)
-              GestureDetector(
-                onTap: onClear,
-                child: const Icon(Icons.close_rounded, size: 16, color: AppColors.primary),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                children: [
+                  _buildDrawerItem(
+                    icon: Icons.assignment_ind_outlined,
+                    title: 'Personal Info',
+                    onTap: () {
+                      context.pop();
+                      context.push('/edit-profile');
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDrawerItem(
+                    icon: Icons.group_rounded,
+                    title: 'Family Profiles',
+                    onTap: () {
+                      context.pop();
+                      context.push('/family-profiles');
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDrawerItem(
+                    icon: Icons.medical_information_rounded,
+                    title: 'Medicine Reminders',
+                    onTap: () {
+                      context.pop();
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => const ReminderCenterScreen(),
+                      ));
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDrawerItem(
+                    icon: Icons.qr_code_scanner_rounded,
+                    title: 'Hospital Check-In',
+                    onTap: () {
+                      context.pop();
+                      context.push('/hospital-checkin');
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDrawerItem(
+                    icon: Icons.settings_outlined,
+                    title: 'Settings',
+                    onTap: () {
+                      context.pop();
+                      context.push('/settings');
+                    },
+                  ),
+                ],
               ),
+            ),
           ],
         ),
       ),
     );
   }
-}
 
-class _SortChip extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _SortChip({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    bool isSelected = false,
+  }) {
+    return InkWell(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary.withValues(alpha: 0.1)
-              : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? AppColors.primary : Colors.transparent,
-            width: 1.5,
-          ),
+          color: isSelected ? const Color(0xFF003D9B) : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon,
-                size: 15,
-                color: selected ? AppColors.primary : Colors.grey),
-            const SizedBox(width: 6),
+            Icon(
+              icon,
+              color: isSelected ? Colors.white : const Color(0xFF475569),
+              size: 22,
+            ),
+            const SizedBox(width: 16),
             Text(
-              label,
+              title,
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                color: selected ? AppColors.primary : const Color(0xFF64748B),
+                fontFamily: 'Inter',
+                fontSize: 14.5,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                color: isSelected ? Colors.white : const Color(0xFF475569),
               ),
             ),
           ],

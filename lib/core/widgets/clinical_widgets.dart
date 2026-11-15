@@ -288,8 +288,8 @@ class AppBottomNavBar extends StatelessWidget {
                 _buildNavItem(
                   context,
                   index: 1,
-                  iconOutline: Icons.history_edu_outlined,
-                  iconFilled: Icons.history_edu_rounded,
+                  iconOutline: Icons.calendar_month_outlined,
+                  iconFilled: Icons.calendar_month_rounded,
                   label: l10n.timeline,
                   route: '/timeline',
                 ),
@@ -316,39 +316,29 @@ class AppBottomNavBar extends StatelessWidget {
           
           // Floating Center Button
           Positioned(
-            top: 0,
+            top: 2,
             child: GestureDetector(
               onTap: () => context.go('/upload'),
               behavior: HitTestBehavior.opaque,
               child: Container(
-                width: 72,
-                height: 72,
+                width: 60,
+                height: 60,
                 decoration: BoxDecoration(
                   color: const Color(0xFF003D9B), // Deep Blue
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF003D9B).withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
+                      color: const Color(0xFF003D9B).withOpacity(0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
                 alignment: Alignment.center,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.add_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: Colors.white,
+                  size: 32,
                 ),
               ),
             ),
@@ -377,17 +367,17 @@ class AppBottomNavBar extends StatelessWidget {
         child: Center(
             child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: isActive ? const Color(0xFF69F0AE) : Colors.transparent,
-              borderRadius: BorderRadius.circular(24),
+              color: isActive ? const Color(0xFFE8F0FE) : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   isActive ? iconFilled : iconOutline,
-                  color: isActive ? const Color(0xFF00695C) : const Color(0xFF334155),
+                  color: isActive ? const Color(0xFF003D9B) : const Color(0xFF64748B),
                   size: 24,
                 ),
                 const SizedBox(height: 2),
@@ -396,9 +386,9 @@ class AppBottomNavBar extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 11,
-                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
-                    color: isActive ? const Color(0xFF00695C) : const Color(0xFF334155),
-                    letterSpacing: 0.2,
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                    color: isActive ? const Color(0xFF003D9B) : const Color(0xFF64748B),
+                    letterSpacing: 0.1,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

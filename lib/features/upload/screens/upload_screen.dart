@@ -18,23 +18,11 @@ class UploadScreen extends ConsumerStatefulWidget {
   ConsumerState<UploadScreen> createState() => _UploadScreenState();
 }
 
-class _UploadScreenState extends ConsumerState<UploadScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
+class _UploadScreenState extends ConsumerState<UploadScreen> {
   final TextEditingController _medicineController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
-  }
-
-  @override
   void dispose() {
-    _pulseController.dispose();
     _medicineController.dispose();
     super.dispose();
   }
@@ -71,8 +59,8 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Text(
+              children: [
+                const Text(
                   'HealthSathi',
                   style: TextStyle(
                     fontFamily: 'Inter',
@@ -82,8 +70,8 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
                     letterSpacing: -0.6,
                   ),
                 ),
-                SizedBox(height: 1),
-                Text(
+                const SizedBox(height: 1),
+                const Text(
                   'Store Medical Records',
                   style: TextStyle(
                     fontFamily: 'Inter',
@@ -413,78 +401,6 @@ class _UploadScreenState extends ConsumerState<UploadScreen>
           ),
         ),
       ),
-    );
-  }
-                text:
-                    'Hold the camera steadily and align the document within the frame.',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 60),
-      ],
-    );
-  }
-
-  // ─── PROCESSING LOADER ───────────────────────────────────────────
-  Widget _buildProcessingLoader({
-    required String key,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-  }) {
-    return Column(
-      key: ValueKey(key),
-      children: [
-        const SizedBox(height: 80),
-        AnimatedBuilder(
-          animation: _pulseController,
-          builder: (context, child) {
-            final scale = 1.0 + (_pulseController.value * 0.08);
-            return Transform.scale(scale: scale, child: child);
-          },
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              const SizedBox(
-                width: 120,
-                height: 120,
-                child: CircularProgressIndicator(
-                  strokeWidth: 4,
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(AppColors.primary),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.08),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 40, color: AppColors.primary),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 36),
-        Text(
-          title,
-          style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.onBackground),
-        ),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                color: AppColors.outline, fontSize: 13, height: 1.45),
-          ),
-        ),
-      ],
     );
   }
 

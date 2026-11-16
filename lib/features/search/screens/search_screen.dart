@@ -17,12 +17,79 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   String _searchQuery = '';
+  String _selectedFilter = 'All';
   final TextEditingController _searchController = TextEditingController();
+
+  final List<String> _filters = const ['All', 'Prescriptions', 'Lab Reports', 'Bills'];
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  String _formatTitle(String raw, String category) {
+    final clean = raw.trim();
+    if (clean.isEmpty) {
+      return _formatCategory(category);
+    }
+    final lower = clean.toLowerCase();
+    if (lower.startsWith('dr ') || lower.startsWith('dr. ')) {
+      final namePart = clean.substring(clean.indexOf(' ') + 1).trim();
+      final words = namePart.split(' ').where((w) => w.isNotEmpty).map((w) {
+        return '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}';
+      }).join(' ');
+      return 'Dr. $words';
+    }
+    if (lower == 'prescription' || lower == 'lab_report') {
+      return _formatCategory(clean);
+    }
+    return clean.split(' ').where((w) => w.isNotEmpty).map((w) {
+      return '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}';
+    }).join(' ');
+  }
+
+  String _formatCategory(String raw) {
+    if (raw.trim().isEmpty) return 'Medical Record';
+    return raw
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .map((w) => '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+        .join(' ');
+  }
+
+  ({IconData icon, Color color, Color bg, Color border}) _getCategoryStyle(String type) {
+    final lower = type.toLowerCase();
+    if (lower.contains('lab') || lower.contains('test') || lower.contains('report')) {
+      return (
+        icon: Icons.biotech_rounded,
+        color: const Color(0xFF0D9488),
+        bg: const Color(0xFFF0FDFA),
+        border: const Color(0xFFCCFBF1),
+      );
+    } else if (lower.contains('presc') || lower.contains('med') || lower.contains('rx')) {
+      return (
+        icon: Icons.medication_rounded,
+        color: const Color(0xFF2563EB),
+        bg: const Color(0xFFEFF6FF),
+        border: const Color(0xFFDBEAFE),
+      );
+    } else if (lower.contains('bill') || lower.contains('invoice') || lower.contains('pay')) {
+      return (
+        icon: Icons.receipt_long_rounded,
+        color: const Color(0xFFD97706),
+        bg: const Color(0xFFFFFBEB),
+        border: const Color(0xFFFDE68A),
+      );
+    }
+    return (
+      icon: Icons.medical_services_rounded,
+      color: const Color(0xFF003D9B),
+      bg: const Color(0xFFEEF2FF),
+      border: const Color(0xFFE0E7FF),
+    );
   }
 
   @override
@@ -36,6 +103,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final records = recordsAsync.valueOrNull ?? [];
 
     final filteredRecords = records.where((r) {
+      // 1. Filter by category pill if not 'All'
+      if (_selectedFilter == 'Prescriptions') {
+        final t = r.recordType.toLowerCase();
+        if (!t.contains('presc') && !t.contains('med')) return false;
+      } else if (_selectedFilter == 'Lab Reports') {
+        final t = r.recordType.toLowerCase();
+        if (!t.contains('lab') && !t.contains('report') && !t.contains('test')) return false;
+      } else if (_selectedFilter == 'Bills') {
+        final t = r.recordType.toLowerCase();
+        if (!t.contains('bill') && !t.contains('invoice')) return false;
+      }
+
+      // 2. Filter by search query
       if (_searchQuery.isEmpty) return true;
       final query = _searchQuery.toLowerCase();
       final doctor = r.doctorName.toLowerCase();
@@ -148,12 +228,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x060F172A),
-                    blurRadius: 10,
+                    blurRadius: 12,
                     offset: Offset(0, 3),
                   ),
                 ],
@@ -162,12 +242,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 controller: _searchController,
                 onChanged: (val) => setState(() => _searchQuery = val),
                 style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w600,
                   color: Color(0xFF0F172A),
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Search records, meds, or ...',
+                  hintText: 'Search records, meds, clinicians...',
                   hintStyle: const TextStyle(
                     color: Color(0xFF94A3B8),
                     fontSize: 14,
@@ -192,7 +272,56 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 14),
+
+            // Quick Category Filter Chips
+            SizedBox(
+              height: 36,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: _filters.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, i) {
+                  final filter = _filters[i];
+                  final isSelected = _selectedFilter == filter;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedFilter = filter),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF003D9B) : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFF003D9B) : const Color(0xFFE2E8F0),
+                          width: 1.0,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFF003D9B).withOpacity(0.22),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        filter,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                          color: isSelected ? Colors.white : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 18),
 
             // Results Header Row
             Row(
@@ -266,10 +395,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       physics: const BouncingScrollPhysics(),
                       itemBuilder: (context, index) {
                         final record = filteredRecords[index];
-                        final title = record.doctorName.isNotEmpty
-                            ? record.doctorName
-                            : (record.recordType.isNotEmpty ? record.recordType : 'Medical Record');
-                        final category = record.recordType.isNotEmpty ? record.recordType : 'Medical Record';
+                        final displayTitle = _formatTitle(record.doctorName, record.recordType);
+                        final displayCategory = _formatCategory(record.recordType);
+                        final style = _getCategoryStyle(record.recordType);
                         final hospital = record.hospitalName.isNotEmpty ? record.hospitalName : 'City General Hospital';
                         final dateStr =
                             '${record.date.day.toString().padLeft(2, '0')}/${record.date.month.toString().padLeft(2, '0')}/${record.date.year}';
@@ -278,12 +406,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           margin: const EdgeInsets.only(bottom: 14),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
                             boxShadow: const [
                               BoxShadow(
                                 color: Color(0x060F172A),
-                                blurRadius: 10,
+                                blurRadius: 12,
                                 offset: Offset(0, 3),
                               ),
                             ],
@@ -295,15 +423,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
+                                  // Category-themed Icon
                                   Container(
-                                    width: 44,
-                                    height: 44,
+                                    width: 46,
+                                    height: 46,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFEFF6FF),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: const Color(0xFFDBEAFE), width: 1),
+                                      color: style.bg,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: style.border, width: 1.2),
                                     ),
-                                    child: const Icon(Icons.person_rounded, color: Color(0xFF003D9B), size: 24),
+                                    alignment: Alignment.center,
+                                    child: Icon(style.icon, color: style.color, size: 24),
                                   ),
                                   const SizedBox(width: 14),
                                   Expanded(
@@ -311,7 +441,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          title,
+                                          displayTitle,
                                           style: const TextStyle(
                                             fontWeight: FontWeight.w800,
                                             fontSize: 16,
@@ -321,16 +451,26 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          category,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF2563EB),
-                                            fontSize: 12.5,
+                                        const SizedBox(height: 4),
+                                        // Badge Pill
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                                          decoration: BoxDecoration(
+                                            color: style.bg,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: style.border, width: 0.8),
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
+                                          child: Text(
+                                            displayCategory,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              color: style.color,
+                                              fontSize: 11,
+                                              letterSpacing: 0.1,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -341,18 +481,25 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF003D9B),
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
                                       elevation: 0,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
+                                        borderRadius: BorderRadius.circular(16),
                                       ),
                                     ),
-                                    child: const Text(
-                                      'View',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w800,
-                                      ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: const [
+                                        Text(
+                                          'View',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        SizedBox(width: 4),
+                                        Icon(Icons.arrow_forward_rounded, size: 14),
+                                      ],
                                     ),
                                   ),
                                 ],
@@ -376,23 +523,45 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  const Icon(Icons.access_time_filled_rounded, size: 14, color: Color(0xFF059669)),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    dateStr,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF059669),
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                  const SizedBox(width: 8),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF059669)),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        dateStr,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF059669),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
+                              if (record.medicines.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.medication_liquid_rounded, size: 14, color: Color(0xFF2563EB)),
+                                    const SizedBox(width: 5),
+                                    Expanded(
+                                      child: Text(
+                                        'Meds: ${record.medicines.join(', ')}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 11.5,
+                                          color: Color(0xFF2563EB),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ],
                           ),
                         );

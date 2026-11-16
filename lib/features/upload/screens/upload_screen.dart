@@ -180,15 +180,45 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       key: const ValueKey('selector'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Digitize Record',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w800,
-            fontSize: 22,
-            color: Color(0xFF1E293B),
-            letterSpacing: -0.5,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Text(
+              'Digitize Record',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w900,
+                fontSize: 22,
+                color: Color(0xFF0F172A),
+                letterSpacing: -0.5,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFDBEAFE), width: 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.auto_awesome, size: 12, color: Color(0xFF003D9B)),
+                  SizedBox(width: 4),
+                  Text(
+                    'AI OCR 2.0',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 10.5,
+                      color: Color(0xFF003D9B),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 6),
         const Text(
@@ -200,55 +230,77 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
             height: 1.4,
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 20),
 
         // AI Extraction Card
         Container(
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white,
+                Color(0xFFF8FAFC),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: const Color(0xFFE2E8F0),
-              width: 1.0,
+              width: 1.2,
             ),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
+                color: Color(0x060F172A),
+                blurRadius: 16,
+                offset: Offset(0, 4),
               ),
             ],
           ),
           child: Column(
             children: [
-              // AI Brain Badge with Sparkle
+              // AI Brain Badge with Glow
               Container(
-                width: 58,
-                height: 58,
+                width: 62,
+                height: 62,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE0EDFF),
-                  borderRadius: BorderRadius.circular(16),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF0052CC),
+                      Color(0xFF003D9B),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF003D9B).withOpacity(0.30),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
                 ),
                 alignment: Alignment.center,
                 child: const Icon(
                   Icons.psychology_rounded,
-                  size: 34,
-                  color: Color(0xFF003D9B),
+                  size: 36,
+                  color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               const Text(
                 'AI-Powered Extraction',
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E293B),
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.3,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               const Text(
                 'Our system automatically identifies medications, dates, and doctor names from your uploads.',
                 style: TextStyle(
@@ -259,28 +311,28 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
               _buildIconCard(
                 icon: Icons.camera_alt_rounded,
-                label: 'Camera',
-                description: 'Scan physical document',
+                label: 'Camera Scan',
+                description: 'Scan physical paper document',
                 color: const Color(0xFF1D4ED8),
-                bgColor: const Color(0xFFF0F6FF),
+                bgColor: const Color(0xFFEFF6FF),
                 onTap: () => notifier.pickFromCamera(),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               _buildIconCard(
-                icon: Icons.image_rounded,
-                label: 'Gallery',
-                description: 'Choose from phone',
+                icon: Icons.photo_library_rounded,
+                label: 'Choose from Gallery',
+                description: 'Pick image from phone library',
                 color: const Color(0xFF059669),
-                bgColor: const Color(0xFFF0FDF4),
+                bgColor: const Color(0xFFECFDF5),
                 onTap: () => notifier.pickFromGallery(),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               _buildIconCard(
                 icon: Icons.picture_as_pdf_rounded,
-                label: 'Upload PDF',
+                label: 'Upload PDF Document',
                 description: 'Medical reports, E-prescriptions',
                 color: const Color(0xFFEA580C),
                 bgColor: const Color(0xFFFFF7ED),
@@ -290,7 +342,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           ),
         ),
 
-        const SizedBox(height: 22),
+        const SizedBox(height: 20),
 
         // Tips Section
         Container(
@@ -300,48 +352,57 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: const Color(0xFFE2E8F0),
-              width: 1.0,
+              width: 1.2,
             ),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Color(0x040F172A),
                 blurRadius: 10,
-                offset: const Offset(0, 3),
+                offset: Offset(0, 3),
               ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'TIPS FOR BEST RESULTS',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF64748B),
-                  letterSpacing: 0.8,
-                ),
+              Row(
+                children: const [
+                  Icon(Icons.tips_and_updates_rounded, size: 16, color: Color(0xFFD97706)),
+                  SizedBox(width: 8),
+                  Text(
+                    'TIPS FOR BEST SCAN ACCURACY',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF64748B),
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 14),
               _buildTipRow(
-                icon: Icons.info_outline_rounded,
-                text: 'Ensure good lighting without glare on the document surface.',
+                icon: Icons.wb_sunny_outlined,
+                title: 'Good Lighting',
+                text: 'Ensure bright, even light without glare on the document.',
               ),
               const SizedBox(height: 10),
               _buildTipRow(
-                icon: Icons.center_focus_strong_rounded,
-                text: 'Hold the camera steadily and align the document within the frame.',
+                icon: Icons.crop_free_rounded,
+                title: 'Steady Framing',
+                text: 'Hold phone steady and keep all four edges inside frame.',
               ),
               const SizedBox(height: 10),
               _buildTipRow(
                 icon: Icons.document_scanner_outlined,
-                text: 'Keep pages flat and edges clearly visible for high AI accuracy.',
+                title: 'Flat Placement',
+                text: 'Keep pages flat and text sharp for maximum AI extraction precision.',
               ),
             ],
           ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 28),
       ],
     );
   }
@@ -824,99 +885,125 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     required Color bgColor,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: color.withOpacity(0.18),
-            width: 1.0,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: color.withOpacity(0.20),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.14),
-                borderRadius: BorderRadius.circular(12),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, size: 26, color: color),
               ),
-              alignment: Alignment.center,
-              child: Icon(icon, size: 24, color: color),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E293B),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.2,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12,
-                      color: Color(0xFF64748B),
+                    const SizedBox(height: 3),
+                    Text(
+                      description,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: Color(0xFF94A3B8),
-              size: 22,
-            ),
-          ],
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  color: color,
+                  size: 15,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildTipRow({required IconData icon, required String text}) {
+  Widget _buildTipRow({required IconData icon, required String title, required String text}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           margin: const EdgeInsets.only(top: 2),
-          width: 20,
-          height: 20,
-          decoration: const BoxDecoration(
-            color: Color(0xFFE8F1FE),
-            shape: BoxShape.circle,
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFF6FF),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFDBEAFE), width: 1),
           ),
           alignment: Alignment.center,
-          child: Icon(icon, size: 13, color: Color(0xFF003D9B)),
+          child: Icon(icon, size: 14, color: const Color(0xFF003D9B)),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 12.5,
-              color: Color(0xFF475569),
-              height: 1.4,
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 12.5,
+                color: Color(0xFF475569),
+                height: 1.4,
+              ),
+              children: [
+                TextSpan(
+                  text: '$title: ',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                TextSpan(text: text),
+              ],
             ),
           ),
         ),

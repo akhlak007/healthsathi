@@ -254,22 +254,24 @@ class AppBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final double bottomPadding = MediaQuery.paddingOf(context).bottom;
     final l10n = AppLocalizations.of(context)!;
+    final bool isFabActive = activeIndex == 2;
     
     return Container(
       color: Colors.transparent,
-      height: 96 + bottomPadding,
+      height: 92 + bottomPadding,
       child: Stack(
         alignment: Alignment.bottomCenter,
+        clipBehavior: Clip.none,
         children: [
-          // White Bar Background
+          // White Bar Background with soft clinical shadow
           Container(
-            height: 72 + bottomPadding,
+            height: 68 + bottomPadding,
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 16,
+                  color: const Color(0x0F0F172A),
+                  blurRadius: 18,
                   offset: const Offset(0, -4),
                 ),
               ],
@@ -316,20 +318,32 @@ class AppBottomNavBar extends StatelessWidget {
           
           // Floating Center Button
           Positioned(
-            top: 2,
+            top: 0,
             child: GestureDetector(
               onTap: () => context.go('/upload'),
               behavior: HitTestBehavior.opaque,
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF003D9B), // Deep Blue
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF0052CC),
+                      Color(0xFF003D9B),
+                    ],
+                  ),
                   shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: isFabActive ? 3.5 : 2.5,
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF003D9B).withOpacity(0.35),
-                      blurRadius: 10,
+                      color: const Color(0xFF003D9B).withOpacity(isFabActive ? 0.45 : 0.32),
+                      blurRadius: isFabActive ? 14 : 10,
                       offset: const Offset(0, 4),
                     ),
                   ],
@@ -365,9 +379,10 @@ class AppBottomNavBar extends StatelessWidget {
         },
         behavior: HitTestBehavior.opaque,
         child: Center(
-            child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
             decoration: BoxDecoration(
               color: isActive ? const Color(0xFFE8F0FE) : Colors.transparent,
               borderRadius: BorderRadius.circular(16),
@@ -378,20 +393,22 @@ class AppBottomNavBar extends StatelessWidget {
                 Icon(
                   isActive ? iconFilled : iconOutline,
                   color: isActive ? const Color(0xFF003D9B) : const Color(0xFF64748B),
-                  size: 23,
+                  size: 22,
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 10.5,
-                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                    color: isActive ? const Color(0xFF003D9B) : const Color(0xFF64748B),
-                    letterSpacing: -0.1,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 10.5,
+                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                      color: isActive ? const Color(0xFF003D9B) : const Color(0xFF64748B),
+                      letterSpacing: -0.2,
+                    ),
+                    maxLines: 1,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

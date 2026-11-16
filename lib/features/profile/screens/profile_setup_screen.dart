@@ -593,7 +593,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             // Medical Documents Vault Banner
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
@@ -603,11 +603,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     Color(0xFF1D4ED8),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(22),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x24003D9B),
-                    blurRadius: 16,
+                    blurRadius: 18,
                     offset: Offset(0, 6),
                   ),
                 ],
@@ -621,7 +621,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                         const Text(
                           'Medical Documents Vault',
                           style: TextStyle(
-                            fontSize: 17,
+                            fontSize: 17.5,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
                             letterSpacing: -0.3,
@@ -631,8 +631,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                         Text(
                           'View all your prescriptions, lab reports, and records in one secure vault.',
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withOpacity(0.88),
+                            fontSize: 12.5,
+                            color: Colors.white.withOpacity(0.90),
                             height: 1.35,
                           ),
                         ),
@@ -654,30 +654,32 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                               Text(
                                 'Explore Vault',
                                 style: TextStyle(
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w800,
                                   fontSize: 13,
+                                  color: Color(0xFF003D9B),
                                 ),
                               ),
                               SizedBox(width: 6),
-                              Icon(Icons.arrow_forward_rounded, size: 16),
+                              Icon(Icons.arrow_forward_rounded, size: 16, color: Color(0xFF003D9B)),
                             ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Container(
-                    width: 52,
-                    height: 52,
+                    width: 56,
+                    height: 56,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.18),
+                      color: Colors.white.withOpacity(0.16),
                       shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white.withOpacity(0.25), width: 1.5),
                     ),
                     child: const Icon(
                       Icons.folder_shared_rounded,
                       color: Colors.white,
-                      size: 26,
+                      size: 28,
                     ),
                   ),
                 ],
@@ -691,8 +693,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x060F172A),
@@ -703,13 +705,14 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               ),
               child: ListTile(
                 onTap: () => context.push('/family-profiles'),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 leading: Container(
-                  width: 42,
-                  height: 42,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFDBEAFE), width: 1),
                   ),
                   child: const Icon(Icons.people_alt_rounded, color: Color(0xFF003D9B), size: 22),
                 ),
@@ -719,6 +722,13 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
                     color: Color(0xFF0F172A),
+                  ),
+                ),
+                subtitle: const Text(
+                  'Manage family profiles & medical history',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
                   ),
                 ),
                 trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 22),
@@ -732,8 +742,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x060F172A),
@@ -746,31 +756,40 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 children: [
                   _buildGroupedSettingTile(
                     icon: Icons.assignment_ind_outlined,
+                    iconColor: const Color(0xFF003D9B),
+                    iconBg: const Color(0xFFEFF6FF),
                     title: 'Personal Information',
+                    subtitle: 'Update your contact and emergency details',
                     onTap: () => context.push('/edit-profile').then((_) => _loadExistingProfile()),
                   ),
                   const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9), indent: 70),
                   _buildGroupedSettingTile(
                     icon: Icons.security_rounded,
+                    iconColor: const Color(0xFF0D9488),
+                    iconBg: const Color(0xFFF0FDFA),
                     title: 'Privacy & Security',
+                    subtitle: 'Passcode, biometric lock, and credentials',
                     onTap: () => context.push('/privacy-security'),
                   ),
                   const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9), indent: 70),
                   _buildGroupedSettingTile(
                     icon: Icons.settings_outlined,
+                    iconColor: const Color(0xFF6366F1),
+                    iconBg: const Color(0xFFEEF2FF),
                     title: 'Preferences',
+                    subtitle: 'Language, notifications, and clinical alerts',
                     onTap: () => context.push('/settings'),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 18),
 
             // Log Out Button
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFFFFF1F2),
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: const Color(0xFFFECDD3), width: 1.2),
               ),
               child: ListTile(
@@ -807,25 +826,32 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     }
                   }
                 },
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 leading: Container(
-                  width: 42,
-                  height: 42,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFEE2E2),
-                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFFFFE4E6),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: const Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 22),
                 ),
                 title: const Text(
                   'Log Out',
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     fontSize: 15,
                     color: Color(0xFFDC2626),
                   ),
                 ),
-                trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFFDC2626), size: 22),
+                subtitle: const Text(
+                  'Sign out of your session on this device',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFE11D48),
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFFFDA4AF), size: 22),
               ),
             ),
             const SizedBox(height: 32),
@@ -839,8 +865,13 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   Widget _buildGroupedSettingTile({
     required IconData icon,
     required String title,
+    String? subtitle,
+    Color? iconColor,
+    Color? iconBg,
     required VoidCallback onTap,
   }) {
+    final effectiveColor = iconColor ?? const Color(0xFF003D9B);
+    final effectiveBg = iconBg ?? const Color(0xFFEFF6FF);
     return ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -848,19 +879,29 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: const Color(0xFFEFF6FF),
+          color: effectiveBg,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, color: const Color(0xFF003D9B), size: 22),
+        alignment: Alignment.center,
+        child: Icon(icon, color: effectiveColor, size: 22),
       ),
       title: Text(
         title,
         style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          fontSize: 14.5,
           color: Color(0xFF0F172A),
         ),
       ),
+      subtitle: subtitle != null
+          ? Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF64748B),
+              ),
+            )
+          : null,
       trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 22),
     );
   }
